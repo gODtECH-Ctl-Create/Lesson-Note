@@ -198,9 +198,13 @@ function elementText_(element) {
   if (!element) return "";
 
   const type = element.getType();
-  if (type === DocumentApp.ElementType.PARAGRAPH ||
-      type === DocumentApp.ElementType.LIST_ITEM) {
-    return element.asParagraph ? element.asParagraph().getText() : element.getText();
+
+  if (type === DocumentApp.ElementType.PARAGRAPH) {
+    return element.asParagraph().getText();
+  }
+
+  if (type === DocumentApp.ElementType.LIST_ITEM) {
+    return element.asListItem().getText();
   }
 
   try {
@@ -335,7 +339,7 @@ function renderText_(textElement) {
     if (attrs[DocumentApp.Attribute.ITALIC]) segment = "<em>" + segment + "</em>";
     if (attrs[DocumentApp.Attribute.BOLD]) segment = "<strong>" + segment + "</strong>";
 
-    const link = attrs[DocumentApp.Attribute.LINK_URL];
+    const link = textElement.getLinkUrl(start);
     if (link && /^https?:\/\//i.test(link)) {
       segment = '<a href="' + escapeAttr_(link) + '" target="_blank" rel="noopener">' +
         segment + "</a>";
