@@ -1,55 +1,56 @@
-# Lesson Note Platform
 
-A lightweight, generic lesson-note platform built for GitHub Pages.
 
-## Current version
+A lightweight static lesson-note platform hosted with GitHub Pages.
 
-This version does **not** depend on a specific class, school, year, or subject.
+## Source
 
-Users can save:
+The lesson data is extracted from **LESSON NOTE [BASIC 3 ] 2026.docx**.
 
-- Class / level
-- Week
-- Subject
-- Optional lesson title
-- Google Docs link
+The importer preserves the lessons that actually exist in the source. If a subject skips a week in the document, the website does not invent content for that missing week.
 
-The saved records are stored in the browser with `localStorage`.
+## Current content
+
+- 12 subjects
+- 90 weekly lesson entries
+- Week and subject selector
+- Full lesson content viewer
+- Mobile-friendly interface
+
+### Subjects
+
+- CRK
+- Civic Education
+- Computer (ICT)
+- Mathematics
+- English Language
+- History
+- Security Education
+- C.C.A. (Cultural and Creative Arts) / Fine Arts
+- Home Economics
+- Basic Science
+- Social Studies
+- Agriculture
 
 ## How it works
 
-1. Open **Manage Lessons**.
-2. Enter the class, week, subject, and Google Docs link.
-3. Click **Save Lesson**.
-4. Open **Browse Lessons**.
-5. Choose the class, week, and subject.
-6. Click **View Lesson**.
-7. The Google Doc is displayed inside the page.
-
-## Google Docs sharing
-
-The document must be accessible to the people who will view it.
-
-For this lightweight version, a common option is:
-
-**Share -> General access -> Anyone with the link -> Viewer**
-
-Normal Google Docs links and published Google Docs links are supported.
-
-## localStorage limitation
-
-The saved lesson list belongs to the current browser/device.
-
-For example, a lesson saved on one teacher's laptop does not automatically appear on another teacher's phone.
-
-A future version can replace localStorage with Supabase or another shared backend without changing the GitHub Pages frontend concept.
+1. Choose an academic week.
+2. The Subject menu automatically shows only subjects that have content for that week.
+3. Choose the subject.
+4. Click **View Lesson**.
+5. The complete lesson note for that subject/week appears on the page.
 
 ## GitHub Pages
 
-The included Pages workflow is located at:
+A Pages deployment workflow is included under:
 
 `.github/workflows/pages.yml`
 
-If needed, enable it from:
+If Pages has not previously been enabled for this repository, open:
 
 **Repository Settings -> Pages -> Build and deployment -> Source -> GitHub Actions**
+
+After that, pushes to `main` automatically deploy the site.
+
+## Updating the lesson notes
+
+When the source document changes, regenerate `lessons.js` from the new source document so the website reflects the updated lesson notes.
