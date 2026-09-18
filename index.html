@@ -8,6 +8,13 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div id="lessonSplash" class="lesson-splash">
+    <div class="education-icon">📚</div>
+    <h1>LessonHub</h1>
+    <p>Smart lesson management for teachers</p>
+    <div class="loading-dots"><span></span><span></span><span></span></div>
+  </div>
+
   <header class="site-header">
     <div class="wrap">
       <p class="eyebrow">LESSONHUB</p>
@@ -26,48 +33,24 @@
     </section>
 
     <section id="lessonWorkspace" class="hidden">
-      <div class="selected-class-banner">
-        Current Class: <strong id="selectedClassName"></strong>
-      </div>
-
+      <div class="selected-class-banner">Current Class: <strong id="selectedClassName"></strong></div>
       <div class="source-bar">
-        <div>
-          <span id="sourceStatus" class="status-pill">Loading lesson source…</span>
-          <span id="sourceUpdated" class="source-updated"></span>
-        </div>
+        <div><span id="sourceStatus" class="status-pill">Loading lesson source…</span><span id="sourceUpdated" class="source-updated"></span></div>
         <button id="refreshSourceBtn" class="secondary-btn compact-btn" type="button">Refresh</button>
       </div>
-
       <section class="selector-card">
-        <div class="field">
-          <label for="weekSelect">Academic Week</label>
-          <select id="weekSelect" disabled></select>
-        </div>
-        <div class="field">
-          <label for="subjectSelect">Subject</label>
-          <select id="subjectSelect" disabled></select>
-        </div>
+        <div class="field"><label for="weekSelect">Academic Week</label><select id="weekSelect" disabled></select></div>
+        <div class="field"><label for="subjectSelect">Subject</label><select id="subjectSelect" disabled></select></div>
         <button id="viewLessonBtn" disabled>View Lesson</button>
       </section>
-
       <section id="lessonSection" class="lesson-section hidden">
-        <div class="lesson-toolbar">
-          <div>
-            <p id="lessonMeta" class="lesson-meta"></p>
-            <h2 id="lessonTitle"></h2>
-          </div>
-          <button id="closeLessonBtn" class="secondary-btn">Close</button>
-        </div>
-        <div id="lessonContainer" class="lesson-container">
-          <p class="placeholder">Choose a lesson to begin.</p>
-        </div>
+        <div class="lesson-toolbar"><div><p id="lessonMeta" class="lesson-meta"></p><h2 id="lessonTitle"></h2></div><button id="closeLessonBtn" class="secondary-btn">Close</button></div>
+        <div id="lessonContainer" class="lesson-container"><p class="placeholder">Choose a lesson to begin.</p></div>
       </section>
     </section>
   </main>
 
-  <footer class="site-footer">
-    <div class="wrap"><p>LessonHub</p></div>
-  </footer>
+  <footer class="site-footer"><div class="wrap"><p>LessonHub</p></div></footer>
 
   <script src="config.js"></script>
   <script src="lessons.js"></script>
@@ -78,6 +61,7 @@
   <script src="class-selection.js"></script>
   <script src="class-ui.js"></script>
   <script src="live-api.js"></script>
+  <script src="splash.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
