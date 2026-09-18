@@ -62,19 +62,17 @@ html,body{
 
 #lessonSection{
  display:block;
- overflow:visible;
  margin-bottom:50px;
+ max-height:70vh;
+ overflow-y:auto;
 }
 
 #lessonContainer{
  width:100%;
- overflow:visible;
 }
 
 .lesson-document{
  width:100%;
- max-height:none;
- overflow:visible;
  background:white;
  border-radius:24px;
  padding:32px;
