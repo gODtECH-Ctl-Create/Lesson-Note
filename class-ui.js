@@ -22,11 +22,25 @@ function renderClassSelector() {
 
   container.querySelectorAll("[data-class]").forEach((button) => {
     button.addEventListener("click", () => {
-      LessonHubClass.set(button.dataset.class);
-      document.body.classList.add("class-selected");
-      document.getElementById("selectedClassName").textContent = button.dataset.class;
-      document.getElementById("classWelcome").classList.add("hidden");
-      document.getElementById("lessonWorkspace").classList.remove("hidden");
+      const selected = button.dataset.class;
+
+      LessonHubClass.set(selected);
+
+      const classScreen = document.getElementById("classScreen");
+      const workspaceScreen = document.getElementById("workspaceScreen");
+      const selectedName = document.getElementById("selectedClassName");
+
+      if (selectedName) {
+        selectedName.textContent = selected;
+      }
+
+      if (classScreen) {
+        classScreen.classList.add("hidden");
+      }
+
+      if (workspaceScreen) {
+        workspaceScreen.classList.remove("hidden");
+      }
     });
   });
 }
