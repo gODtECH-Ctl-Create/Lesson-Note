@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Basic 3 lesson note viewer for 2026" />
+  <meta name="description" content="Basic 3 live lesson note viewer for 2026" />
   <title>LESSON NOTE [BASIC 3] 2026</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -17,11 +17,19 @@
   </header>
 
   <main class="wrap">
+    <div class="source-bar">
+      <div>
+        <span id="sourceStatus" class="status-pill">Loading lesson source…</span>
+        <span id="sourceUpdated" class="source-updated"></span>
+      </div>
+      <button id="refreshSourceBtn" class="secondary-btn compact-btn" type="button">Refresh</button>
+    </div>
+
     <section class="selector-card" aria-label="Lesson selector">
       <div class="field">
         <label for="weekSelect">Academic Week</label>
-        <select id="weekSelect">
-          <option value="">Select week</option>
+        <select id="weekSelect" disabled>
+          <option value="">Loading weeks…</option>
         </select>
       </div>
 
@@ -56,11 +64,16 @@
     </div>
   </footer>
 
+  <script src="config.js"></script>
+
+  <!-- Static snapshot: retained as a fallback until/if the live API is unavailable. -->
   <script src="lessons.js"></script>
   <script src="format-ranges-1.js"></script>
   <script src="format-ranges-2.js"></script>
   <script src="format-ranges-3.js"></script>
   <script src="format-ranges-4.js"></script>
+
+  <script src="live-api.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
