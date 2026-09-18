@@ -23,24 +23,26 @@ function renderClassSelector() {
   container.querySelectorAll("[data-class]").forEach((button) => {
     button.addEventListener("click", () => {
       const selected = button.dataset.class;
-
       LessonHubClass.set(selected);
 
       const classScreen = document.getElementById("classScreen");
-      const workspaceScreen = document.getElementById("workspaceScreen");
-      const selectedName = document.getElementById("selectedClassName");
+      const dashboardScreen = document.getElementById("dashboardScreen");
+      const dashboardClassName = document.getElementById("dashboardClassName");
 
-      if (selectedName) {
-        selectedName.textContent = selected;
+      if (dashboardClassName) {
+        dashboardClassName.textContent = selected;
       }
 
-      if (classScreen) {
-        classScreen.classList.add("hidden");
-      }
+      classScreen?.classList.add("hidden");
+      dashboardScreen?.classList.remove("hidden");
 
-      if (workspaceScreen) {
-        workspaceScreen.classList.remove("hidden");
-      }
+      const lessonsBtn = document.getElementById("openLessonsBtn");
+      lessonsBtn?.addEventListener("click", () => {
+        dashboardScreen?.classList.add("hidden");
+        document.getElementById("workspaceScreen")?.classList.remove("hidden");
+        const selectedName = document.getElementById("selectedClassName");
+        if (selectedName) selectedName.textContent = selected;
+      }, { once: true });
     });
   });
 }
