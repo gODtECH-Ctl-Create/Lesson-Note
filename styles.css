@@ -185,3 +185,27 @@ button:disabled { opacity: .48; cursor: not-allowed; }
     min-height: 650px;
   }
 }
+
+.lesson-document {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 8px 4px 32px;
+}
+
+.lesson-topic {
+  margin: 0 0 22px;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  line-height: 1.25;
+}
+
+.lesson-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.78;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.lesson-text::first-line {
+  font-weight: 600;
+}
