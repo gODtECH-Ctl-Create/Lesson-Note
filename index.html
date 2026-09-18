@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Lightweight lesson note viewer" />
+  <title>Lesson Notes</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <p class="eyebrow">LESSON NOTE LIBRARY</p>
+      <h1>Find a lesson in seconds.</h1>
+      <p class="intro">Choose the academic week and subject to open the complete lesson note.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="selector-card" aria-label="Lesson selector">
+      <div class="field">
+        <label for="weekSelect">Academic Week</label>
+        <select id="weekSelect">
+          <option value="">Select week</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="subjectSelect">Subject</label>
+        <select id="subjectSelect" disabled>
+          <option value="">Select subject</option>
+        </select>
+      </div>
+
+      <button id="viewLessonBtn" disabled>View Lesson</button>
+    </section>
+
+    <section id="lessonSection" class="lesson-section hidden">
+      <div class="lesson-toolbar">
+        <div>
+          <p id="lessonMeta" class="lesson-meta"></p>
+          <h2 id="lessonTitle"></h2>
+        </div>
+        <button id="closeLessonBtn" class="secondary-btn">Close</button>
+      </div>
+
+      <div id="lessonContainer" class="lesson-container">
+        <p class="placeholder">Choose a lesson to begin.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Lesson Notes · Lightweight and easy to update.</p>
+    </div>
+  </footer>
+
+  <script src="lessons.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
