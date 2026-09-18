@@ -6,15 +6,74 @@ const lessonContainer = document.getElementById("lessonContainer");
 const lessonTitle = document.getElementById("lessonTitle");
 const lessonMeta = document.getElementById("lessonMeta");
 const closeLessonBtn = document.getElementById("closeLessonBtn");
+const sourceStatus = document.getElementById("sourceStatus");
+const sourceUpdated = document.getElementById("sourceUpdated");
+const refreshSourceBtn = document.getElementById("refreshSourceBtn");
+
+let sourceMode = "static";
+let lessonIndex = {};
+let liveManifest = null;
 
 function weekNumber(label) {
-  const match = label.match(/\d+/);
+  const match = String(label || "").match(/\d+/);
   return match ? Number(match[0]) : 999;
 }
 
-function loadWeeks() {
-  Object.keys(LESSONS)
-    .sort((a, b) => weekNumber(a) - weekNumber(b))
+function clearSelect(select, placeholder, disabled = true) {
+  select.innerHTML = "";
+  const option = document.createElement("option");
+  option.value = "";
+  option.textContent = placeholder;
+  select.appendChild(option);
+  select.disabled = disabled;
+}
+
+function buildStaticIndex() {
+  const result = {};
+
+  Object.keys(LESSONS).forEach((week) => {
+    result[week] = {};
+    Object.keys(LESSONS[week]).forEach((subject) => {
+      const lesson = LESSONS[week][subject];
+      result[week][subject] = {
+        week,
+        subject,
+        topic: lesson.topic || "",
+        dates: lesson.dates || ""
+      };
+    });
+  });
+
+  return result;
+}
+
+function buildLiveIndex(manifest) {
+  const result = {};
+
+  (manifest.subjects || []).forEach((subjectEntry) => {
+    (subjectEntry.weeks || []).forEach((weekEntry) => {
+      const week = weekEntry.week;
+      if (!result[week]) result[week] = {};
+
+      result[week][subjectEntry.subject] = {
+        week,
+        subject: subjectEntry.subject,
+        topic: weekEntry.topic || "",
+        dates: weekEntry.dates || ""
+      };
+    });
+  });
+
+  return result;
+}
+
+function populateWeeks() {
+  clearSelect(weekSelect, "Select week", false);
+  clearSelect(subjectSelect, "Select subject", true);
+  viewLessonBtn.disabled = true;
+
+  Object.keys(lessonIndex)
+    .sort((a, b) => weekNumber(a) - weekNumber(b) || a.localeCompare(b))
     .forEach((week) => {
       const option = document.createElement("option");
       option.value = week;
@@ -23,19 +82,14 @@ function loadWeeks() {
     });
 }
 
-function resetSubjects() {
-  subjectSelect.innerHTML = '<option value="">Select subject</option>';
-  subjectSelect.disabled = true;
+function populateSubjects() {
+  clearSelect(subjectSelect, "Select subject", true);
   viewLessonBtn.disabled = true;
-}
 
-weekSelect.addEventListener("change", () => {
-  resetSubjects();
+  const week = weekSelect.value;
+  if (!week || !lessonIndex[week]) return;
 
-  const selectedWeek = weekSelect.value;
-  if (!selectedWeek || !LESSONS[selectedWeek]) return;
-
-  Object.keys(LESSONS[selectedWeek])
+  Object.keys(lessonIndex[week])
     .sort((a, b) => a.localeCompare(b))
     .forEach((subject) => {
       const option = document.createElement("option");
@@ -45,14 +99,63 @@ weekSelect.addEventListener("change", () => {
     });
 
   subjectSelect.disabled = false;
-});
+}
 
-subjectSelect.addEventListener("change", () => {
-  viewLessonBtn.disabled = !subjectSelect.value;
-});
+function setSourceStatus(mode, message, updatedAt = "") {
+  sourceMode = mode;
+  sourceStatus.textContent = message;
+  sourceStatus.className = "status-pill " + (mode === "live" ? "live" : "snapshot");
+
+  if (updatedAt) {
+    const date = new Date(updatedAt);
+    sourceUpdated.textContent = Number.isNaN(date.getTime())
+      ? ""
+      : "Source updated " + date.toLocaleString();
+  } else {
+    sourceUpdated.textContent = "";
+  }
+}
+
+async function loadSource() {
+  refreshSourceBtn.disabled = true;
+  sourceStatus.textContent = "Loading lesson source…";
+  sourceStatus.className = "status-pill";
+  sourceUpdated.textContent = "";
+  clearSelect(weekSelect, "Loading weeks…", true);
+  clearSelect(subjectSelect, "Select subject", true);
+  viewLessonBtn.disabled = true;
+
+  if (window.lessonApi?.enabled) {
+    try {
+      liveManifest = await window.lessonApi.call("manifest");
+      lessonIndex = buildLiveIndex(liveManifest);
+
+      if (!Object.keys(lessonIndex).length) {
+        throw new Error("The live Google Doc did not return any WEEK headings.");
+      }
+
+      populateWeeks();
+      setSourceStatus("live", "Live Google Doc", liveManifest.modifiedAt);
+      refreshSourceBtn.disabled = false;
+      return;
+    } catch (error) {
+      console.warn("Live source unavailable; using snapshot.", error);
+    }
+  }
+
+  lessonIndex = buildStaticIndex();
+  populateWeeks();
+
+  const reason = window.lessonApi?.enabled
+    ? "Live source unavailable · using saved snapshot"
+    : "Saved snapshot · live source not connected yet";
+
+  setSourceStatus("static", reason);
+  refreshSourceBtn.disabled = false;
+}
 
 function escapeHtml(value) {
-  return value
+  return String(value || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -60,7 +163,7 @@ function escapeHtml(value) {
 }
 
 function normalizeWordText(value) {
-  return value.replace(/\s+/g, " ").trim();
+  return String(value || "").replace(/\s+/g, " ").trim();
 }
 
 function fnv1a(value) {
@@ -126,8 +229,7 @@ function isFullyBold(record) {
   if (!record.text.length || !record.ranges.length) return false;
 
   let covered = 0;
-  const sorted = [...record.ranges].sort((a, b) => a[0] - b[0]);
-  sorted.forEach(([start, end, mask]) => {
+  record.ranges.forEach(([start, end, mask]) => {
     if (mask & 1) covered += Math.max(0, end - start);
   });
 
@@ -140,8 +242,8 @@ const SECTION_HEADINGS = new Set([
   "Assessment & Homework"
 ]);
 
-function renderDocumentContent(content) {
-  const blocks = content
+function renderStaticDocumentContent(content) {
+  const blocks = String(content || "")
     .split(/\n\s*\n/)
     .map((block) => block.trim())
     .filter(Boolean);
@@ -191,18 +293,16 @@ function renderDocumentContent(content) {
       isFullyBold(rendered.record) ||
       (rendered.record.text.length < 90 && /[:?]$/.test(rendered.record.text));
 
-    if (looksLikeSubheading) {
-      html += '<p class="doc-subheading">' + rendered.html + "</p>";
-    } else {
-      html += '<p class="doc-paragraph">' + rendered.html + "</p>";
-    }
+    html += looksLikeSubheading
+      ? '<p class="doc-subheading">' + rendered.html + "</p>"
+      : '<p class="doc-paragraph">' + rendered.html + "</p>";
   });
 
   closeList();
   return html;
 }
 
-function renderLesson(lesson, week, subject) {
+function renderStaticLesson(lesson, week, subject) {
   lessonContainer.innerHTML = "";
 
   const article = document.createElement("article");
@@ -217,42 +317,84 @@ function renderLesson(lesson, week, subject) {
 
   const body = document.createElement("div");
   body.className = "lesson-text";
-  body.innerHTML = renderDocumentContent(lesson.content);
+  body.innerHTML = renderStaticDocumentContent(lesson.content);
   article.appendChild(body);
 
   lessonContainer.appendChild(article);
-
-  lessonMeta.textContent = [
-    "Basic 3",
-    "2026",
-    week,
-    lesson.dates
-  ].filter(Boolean).join(" · ");
-
+  lessonMeta.textContent = ["Basic 3", "2026", week, lesson.dates].filter(Boolean).join(" · ");
   lessonTitle.textContent = subject;
 }
 
-viewLessonBtn.addEventListener("click", () => {
+function renderLiveLesson(lesson) {
+  lessonContainer.innerHTML = "";
+
+  const article = document.createElement("article");
+  article.className = "lesson-document live-document";
+
+  if (lesson.topic) {
+    const topic = document.createElement("h3");
+    topic.className = "lesson-topic";
+    topic.textContent = lesson.topic;
+    article.appendChild(topic);
+  }
+
+  const body = document.createElement("div");
+  body.className = "lesson-text live-doc-content";
+  body.innerHTML = lesson.html || '<p class="placeholder">This lesson has no content yet.</p>';
+  article.appendChild(body);
+
+  lessonContainer.appendChild(article);
+  lessonMeta.textContent = ["Basic 3", "2026", lesson.week, lesson.dates].filter(Boolean).join(" · ");
+  lessonTitle.textContent = lesson.subject;
+}
+
+async function viewSelectedLesson() {
   const week = weekSelect.value;
   const subject = subjectSelect.value;
-  const lesson = LESSONS?.[week]?.[subject];
+
+  if (!week || !subject) return;
 
   lessonSection.classList.remove("hidden");
+  lessonTitle.textContent = subject;
+  lessonMeta.textContent = ["Basic 3", "2026", week].join(" · ");
+  lessonContainer.innerHTML = '<p class="placeholder">Loading lesson…</p>';
+  lessonSection.scrollIntoView({ behavior: "smooth", block: "start" });
 
+  if (sourceMode === "live" && window.lessonApi?.enabled) {
+    try {
+      const lesson = await window.lessonApi.call("lesson", { subject, week });
+      renderLiveLesson(lesson);
+      return;
+    } catch (error) {
+      lessonContainer.innerHTML =
+        '<p class="error">Could not load the live lesson. Refresh the source and try again.</p>';
+      return;
+    }
+  }
+
+  const lesson = LESSONS?.[week]?.[subject];
   if (!lesson) {
     lessonContainer.innerHTML =
-      '<p class="error">No lesson was found for this week and subject in the source document.</p>';
+      '<p class="error">No lesson was found for this week and subject.</p>';
     return;
   }
 
-  renderLesson(lesson, week, subject);
-  lessonSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  renderStaticLesson(lesson, week, subject);
+}
+
+weekSelect.addEventListener("change", populateSubjects);
+
+subjectSelect.addEventListener("change", () => {
+  viewLessonBtn.disabled = !subjectSelect.value;
 });
+
+viewLessonBtn.addEventListener("click", viewSelectedLesson);
 
 closeLessonBtn.addEventListener("click", () => {
   lessonSection.classList.add("hidden");
-  lessonContainer.innerHTML =
-    '<p class="placeholder">Choose a lesson to begin.</p>';
+  lessonContainer.innerHTML = '<p class="placeholder">Choose a lesson to begin.</p>';
 });
 
-loadWeeks();
+refreshSourceBtn.addEventListener("click", loadSource);
+
+loadSource();
