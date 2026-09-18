@@ -25,7 +25,6 @@
     <div class="app-brand">LESSONHUB</div>
     <h1 id="dashboardClassName"></h1>
     <p class="intro">Teacher dashboard</p>
-
     <div class="dashboard-grid">
       <button id="openLessonsBtn">📚 Lesson Notes</button>
       <button id="openCompletedBtn">✅ Completed Lessons</button>
@@ -35,17 +34,31 @@
 
   <section id="workspaceScreen" class="screen app-screen hidden">
     <div class="selected-class-banner">Current Class: <strong id="selectedClassName"></strong></div>
+
     <div class="source-bar">
-      <span id="sourceStatus" class="status-pill">Loading lesson source…</span>
+      <div>
+        <span id="sourceStatus" class="status-pill">Loading lesson source…</span>
+        <small id="sourceUpdated"></small>
+      </div>
       <button id="refreshSourceBtn" class="secondary-btn">Refresh</button>
     </div>
+
     <section class="selector-card">
-      <div class="field"><label for="weekSelect">Academic Week</label><select id="weekSelect"></select></div>
-      <div class="field"><label for="subjectSelect">Subject</label><select id="subjectSelect"></select></div>
+      <div class="field">
+        <label for="weekSelect">Academic Week</label>
+        <select id="weekSelect"></select>
+      </div>
+      <div class="field">
+        <label for="subjectSelect">Subject</label>
+        <select id="subjectSelect"></select>
+      </div>
       <button id="viewLessonBtn">View Lesson</button>
     </section>
+
     <section id="lessonSection" class="lesson-section hidden">
+      <button id="closeLessonBtn" class="secondary-btn">Back</button>
       <h2 id="lessonTitle"></h2>
+      <p id="lessonMeta"></p>
       <div id="lessonContainer"></div>
     </section>
   </section>
