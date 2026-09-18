@@ -3,65 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="LessonHub teacher lesson management platform" />
   <title>LessonHub</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="lessonSplash" class="lesson-splash">
+<div id="app">
+  <section id="lessonSplash" class="screen lesson-splash">
     <div class="education-icon">📚</div>
     <h1>LessonHub</h1>
     <p>Smart lesson management for teachers</p>
     <div class="loading-dots"><span></span><span></span><span></span></div>
-  </div>
+  </section>
 
-  <header class="site-header">
-    <div class="wrap">
-      <p class="eyebrow">LESSONHUB</p>
-      <h1>Welcome to LessonHub</h1>
-      <p class="intro">Your teacher lesson management platform. Select your class to access lesson notes.</p>
+  <section id="classScreen" class="screen app-screen">
+    <div class="app-brand">LESSONHUB</div>
+    <h1>Welcome to LessonHub</h1>
+    <p class="intro">Choose the class you are teaching.</p>
+    <div id="classSelector" class="class-grid"></div>
+  </section>
+
+  <section id="workspaceScreen" class="screen app-screen hidden">
+    <div class="selected-class-banner">Current Class: <strong id="selectedClassName"></strong></div>
+    <div class="source-bar">
+      <span id="sourceStatus" class="status-pill">Loading lesson source…</span>
+      <button id="refreshSourceBtn" class="secondary-btn">Refresh</button>
     </div>
-  </header>
-
-  <main class="wrap">
-    <section id="classWelcome" class="selector-card class-welcome">
-      <div>
-        <h2>Choose Your Class</h2>
-        <p>Select the class you are teaching.</p>
-      </div>
-      <div id="classSelector" class="class-grid"></div>
+    <section class="selector-card">
+      <div class="field"><label for="weekSelect">Academic Week</label><select id="weekSelect"></select></div>
+      <div class="field"><label for="subjectSelect">Subject</label><select id="subjectSelect"></select></div>
+      <button id="viewLessonBtn">View Lesson</button>
     </section>
-
-    <section id="lessonWorkspace" class="hidden">
-      <div class="selected-class-banner">Current Class: <strong id="selectedClassName"></strong></div>
-      <div class="source-bar">
-        <div><span id="sourceStatus" class="status-pill">Loading lesson source…</span><span id="sourceUpdated" class="source-updated"></span></div>
-        <button id="refreshSourceBtn" class="secondary-btn compact-btn" type="button">Refresh</button>
-      </div>
-      <section class="selector-card">
-        <div class="field"><label for="weekSelect">Academic Week</label><select id="weekSelect" disabled></select></div>
-        <div class="field"><label for="subjectSelect">Subject</label><select id="subjectSelect" disabled></select></div>
-        <button id="viewLessonBtn" disabled>View Lesson</button>
-      </section>
-      <section id="lessonSection" class="lesson-section hidden">
-        <div class="lesson-toolbar"><div><p id="lessonMeta" class="lesson-meta"></p><h2 id="lessonTitle"></h2></div><button id="closeLessonBtn" class="secondary-btn">Close</button></div>
-        <div id="lessonContainer" class="lesson-container"><p class="placeholder">Choose a lesson to begin.</p></div>
-      </section>
+    <section id="lessonSection" class="lesson-section hidden">
+      <h2 id="lessonTitle"></h2>
+      <div id="lessonContainer"></div>
     </section>
-  </main>
-
-  <footer class="site-footer"><div class="wrap"><p>LessonHub</p></div></footer>
-
-  <script src="config.js"></script>
-  <script src="lessons.js"></script>
-  <script src="format-ranges-1.js"></script>
-  <script src="format-ranges-2.js"></script>
-  <script src="format-ranges-3.js"></script>
-  <script src="format-ranges-4.js"></script>
-  <script src="class-selection.js"></script>
-  <script src="class-ui.js"></script>
-  <script src="live-api.js"></script>
-  <script src="splash.js"></script>
-  <script src="app.js"></script>
+  </section>
+</div>
+<script src="config.js"></script>
+<script src="lessons.js"></script>
+<script src="format-ranges-1.js"></script>
+<script src="format-ranges-2.js"></script>
+<script src="format-ranges-3.js"></script>
+<script src="format-ranges-4.js"></script>
+<script src="class-selection.js"></script>
+<script src="class-ui.js"></script>
+<script src="live-api.js"></script>
+<script src="splash.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
