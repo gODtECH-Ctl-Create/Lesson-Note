@@ -3,147 +3,64 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Lightweight lesson note viewer powered by Google Docs and local storage" />
-  <title>Lesson Notes</title>
+  <meta name="description" content="Basic 3 lesson note viewer for 2026" />
+  <title>LESSON NOTE [BASIC 3] 2026</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="site-header">
     <div class="wrap">
-      <p class="eyebrow">LESSON NOTE PLATFORM</p>
-      <h1>Lesson Notes</h1>
-      <p class="intro">Save Google Docs lesson links by class, week, and subject, then reopen them anytime on this device.</p>
+      <p class="eyebrow">LESSON NOTE · BASIC 3 · 2026</p>
+      <h1>Basic 3 Lesson Notes</h1>
+      <p class="intro">Choose the academic week and subject to open the complete lesson note.</p>
     </div>
   </header>
 
   <main class="wrap">
-    <nav class="tabs" aria-label="Lesson note sections">
-      <button id="browseTab" class="tab-btn active" type="button">Browse Lessons</button>
-      <button id="manageTab" class="tab-btn" type="button">Manage Lessons</button>
-    </nav>
-
-    <section id="browsePanel" class="panel">
-      <div class="selector-card" aria-label="Lesson selector">
-        <div class="field">
-          <label for="classSelect">Class / Level</label>
-          <select id="classSelect">
-            <option value="">Select class</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="weekSelect">Week</label>
-          <select id="weekSelect" disabled>
-            <option value="">Select week</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label for="subjectSelect">Subject</label>
-          <select id="subjectSelect" disabled>
-            <option value="">Select subject</option>
-          </select>
-        </div>
-
-        <button id="viewLessonBtn" type="button" disabled>View Lesson</button>
+    <section class="selector-card" aria-label="Lesson selector">
+      <div class="field">
+        <label for="weekSelect">Academic Week</label>
+        <select id="weekSelect">
+          <option value="">Select week</option>
+        </select>
       </div>
 
-      <div id="emptyBrowseState" class="empty-state">
-        No lessons have been saved on this device yet. Open <strong>Manage Lessons</strong> to add one.
+      <div class="field">
+        <label for="subjectSelect">Subject</label>
+        <select id="subjectSelect" disabled>
+          <option value="">Select subject</option>
+        </select>
       </div>
 
-      <section id="lessonSection" class="lesson-section hidden">
-        <div class="lesson-toolbar">
-          <div>
-            <p id="lessonMeta" class="lesson-meta"></p>
-            <h2 id="lessonTitle"></h2>
-          </div>
-          <div class="toolbar-actions">
-            <a id="openDocLink" class="link-btn" href="#" target="_blank" rel="noopener">Open in Google Docs</a>
-            <button id="closeLessonBtn" class="secondary-btn" type="button">Close</button>
-          </div>
-        </div>
-
-        <div id="lessonContainer" class="lesson-container"></div>
-      </section>
+      <button id="viewLessonBtn" disabled>View Lesson</button>
     </section>
 
-    <section id="managePanel" class="panel hidden">
-      <div class="admin-grid">
-        <form id="lessonForm" class="admin-card">
-          <div class="card-heading">
-            <div>
-              <p class="eyebrow small">LOCAL LESSON MANAGER</p>
-              <h2 id="formHeading">Add Lesson</h2>
-            </div>
-            <button id="cancelEditBtn" class="secondary-btn small-btn hidden" type="button">Cancel Edit</button>
-          </div>
-
-          <input id="lessonId" type="hidden" />
-
-          <div class="form-grid">
-            <div class="field">
-              <label for="classInput">Class / Level</label>
-              <input id="classInput" type="text" placeholder="e.g. Basic 3, JSS 1, Grade 5" required />
-            </div>
-
-            <div class="field">
-              <label for="weekInput">Week</label>
-              <input id="weekInput" type="text" placeholder="e.g. Week 1" required />
-            </div>
-
-            <div class="field">
-              <label for="subjectInput">Subject</label>
-              <input id="subjectInput" type="text" placeholder="e.g. English Language" required />
-            </div>
-
-            <div class="field">
-              <label for="titleInput">Lesson title <span class="optional">(optional)</span></label>
-              <input id="titleInput" type="text" placeholder="e.g. Parts of Speech" />
-            </div>
-
-            <div class="field full-width">
-              <label for="docUrlInput">Google Docs link</label>
-              <input id="docUrlInput" type="url" placeholder="https://docs.google.com/document/d/..." required />
-              <small>Share the document so viewers can access it. “Anyone with the link” works well for this version.</small>
-            </div>
-          </div>
-
-          <div id="formMessage" class="form-message hidden"></div>
-
-          <div class="form-actions">
-            <button id="saveLessonBtn" type="submit">Save Lesson</button>
-            <button id="clearFormBtn" class="secondary-btn" type="button">Clear</button>
-          </div>
-        </form>
-
-        <aside class="info-card">
-          <h3>How this version works</h3>
-          <p>The site itself stays on GitHub Pages. The lesson list is saved using your browser's <strong>localStorage</strong>.</p>
-          <p>That means the saved lessons remain on this browser/device, but they do not automatically sync to another phone or computer.</p>
-        </aside>
+    <section id="lessonSection" class="lesson-section hidden">
+      <div class="lesson-toolbar">
+        <div>
+          <p id="lessonMeta" class="lesson-meta"></p>
+          <h2 id="lessonTitle"></h2>
+        </div>
+        <button id="closeLessonBtn" class="secondary-btn">Close</button>
       </div>
 
-      <section class="saved-card">
-        <div class="saved-heading">
-          <div>
-            <h2>Saved Lessons</h2>
-            <p id="savedCount" class="muted"></p>
-          </div>
-          <input id="searchLessons" class="search-input" type="search" placeholder="Search saved lessons..." />
-        </div>
-
-        <div id="savedLessonsList" class="saved-list"></div>
-      </section>
+      <div id="lessonContainer" class="lesson-container">
+        <p class="placeholder">Choose a lesson to begin.</p>
+      </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="wrap">
-      <p>Lesson Note Platform · GitHub Pages + Google Docs + localStorage</p>
+      <p>LESSON NOTE [BASIC 3] 2026</p>
     </div>
   </footer>
 
+  <script src="lessons.js"></script>
+  <script src="format-ranges-1.js"></script>
+  <script src="format-ranges-2.js"></script>
+  <script src="format-ranges-3.js"></script>
+  <script src="format-ranges-4.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
