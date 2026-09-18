@@ -1,56 +1,72 @@
+# LESSON NOTE [BASIC 3] 2026
 
+A lightweight GitHub Pages lesson-note viewer with a **live Google Docs source** and a bundled static fallback.
 
-A lightweight static lesson-note platform hosted with GitHub Pages.
+## Live architecture
 
-## Source
+```text
+Master Google Doc
+  -> Google Apps Script Web App
+  -> GitHub Pages
+  -> Week -> Subject -> View Lesson
+```
 
-The lesson data is extracted from **LESSON NOTE [BASIC 3 ] 2026.docx**.
+The master Google Doc already has an ideal structure for this:
 
-The importer preserves the lessons that actually exist in the source. If a subject skips a week in the document, the website does not invent content for that missing week.
+- each Google Docs **tab is a subject**
+- each lesson begins with a **WEEK <number>** heading
+- native Google Docs bold, italic, underline, headings, lists, tables and inline images are rendered by the live API
 
-## Current content
+## One-time setup
 
-- 12 subjects
-- 90 weekly lesson entries
-- Week and subject selector
-- Full lesson content viewer
-- Mobile-friendly interface
+The live bridge code is already in:
 
-### Subjects
+`apps-script/Code.gs`
 
-- CRK
-- Civic Education
-- Computer (ICT)
-- Mathematics
-- English Language
-- History
-- Security Education
-- C.C.A. (Cultural and Creative Arts) / Fine Arts
-- Home Economics
-- Basic Science
-- Social Studies
-- Agriculture
+Setup instructions are in:
 
-## How it works
+`apps-script/README.md`
 
-1. Choose an academic week.
-2. The Subject menu automatically shows only subjects that have content for that week.
-3. Choose the subject.
-4. Click **View Lesson**.
-5. The complete lesson note for that subject/week appears on the page.
+After deploying the Apps Script Web App, paste its `/exec` URL into:
+
+`config.js`
+
+Example:
+
+```js
+window.LESSON_API_URL = "https://script.google.com/macros/s/DEPLOYMENT_ID/exec";
+```
+
+Until that URL is configured, the site continues to use the current imported `lessons.js` snapshot.
+
+## Adding new lessons after setup
+
+### Existing subject
+
+Open the subject's Google Docs tab and add a new heading such as:
+
+```text
+WEEK 11 (November 23 – 27, 2026): Revision
+```
+
+Use the same **Heading 2** style as the existing WEEK headings, then write the lesson content underneath it.
+
+### New subject
+
+Create a new Google Docs tab, use the subject name as the tab title, and add WEEK headings inside it.
+
+The GitHub Pages site reads the updated structure automatically. The Apps Script uses a 30-second cache, so recent changes may take up to about 30 seconds to appear after refresh.
+
+## Static fallback
+
+The existing imported lesson snapshot is intentionally retained. If the live Apps Script endpoint is unavailable, the site falls back to the static lesson data instead of becoming unusable.
 
 ## GitHub Pages
 
-A Pages deployment workflow is included under:
+The deployment workflow remains at:
 
 `.github/workflows/pages.yml`
 
-If Pages has not previously been enabled for this repository, open:
+If Pages is not already enabled:
 
 **Repository Settings -> Pages -> Build and deployment -> Source -> GitHub Actions**
-
-After that, pushes to `main` automatically deploy the site.
-
-## Updating the lesson notes
-
-When the source document changes, regenerate `lessons.js` from the new source document so the website reflects the updated lesson notes.
