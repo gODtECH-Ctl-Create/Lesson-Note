@@ -1,4 +1,4 @@
-# LESSON NOTE [BASIC 3] 2026
+
 
 A lightweight static lesson-note platform hosted with GitHub Pages.
 
