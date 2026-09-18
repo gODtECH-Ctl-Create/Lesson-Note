@@ -144,11 +144,7 @@ function getLesson_(subjectName, weekLabel) {
     throw new Error("Week " + weekNumber + " was not found in " + subjectName);
   }
 
-  const parts = [];
-  for (let i = startIndex; i < endIndex; i++) {
-    const html = renderElement_(body.getChild(i));
-    if (html) parts.push(html);
-  }
+  const renderedHtml = renderBodyRange_(body, startIndex, endIndex);
 
   const payload = {
     ok: true,
@@ -156,7 +152,7 @@ function getLesson_(subjectName, weekLabel) {
     week: "Week " + weekNumber,
     dates: headingInfo ? headingInfo.dates : "",
     topic: headingInfo ? headingInfo.topic : "",
-    html: parts.join("\n"),
+    html: renderedHtml,
     modifiedAt: DriveApp.getFileById(CONFIG.DOCUMENT_ID).getLastUpdated().toISOString()
   };
 
@@ -214,6 +210,62 @@ function elementText_(element) {
   }
 }
 
+function renderBodyRange_(body, startIndex, endIndex) {
+  const parts = [];
+  let openListTag = null;
+
+  function closeList() {
+    if (openListTag) {
+      parts.push("</" + openListTag + ">");
+      openListTag = null;
+    }
+  }
+
+  for (let i = startIndex; i < endIndex; i++) {
+    const child = body.getChild(i);
+
+    if (child.getType() === DocumentApp.ElementType.LIST_ITEM) {
+      const item = child.asListItem();
+      const tag = listTagForItem_(item);
+
+      if (openListTag !== tag) {
+        closeList();
+        parts.push('<' + tag + ' class="doc-list">');
+        openListTag = tag;
+      }
+
+      const level = item.getNestingLevel ? item.getNestingLevel() : 0;
+      parts.push(
+        '<li data-level="' + level + '" style="margin-left:' + (level * 1.25) + 'rem">' +
+        renderInlineChildren_(item) +
+        "</li>"
+      );
+      continue;
+    }
+
+    closeList();
+
+    const html = renderElement_(child);
+    if (html) parts.push(html);
+  }
+
+  closeList();
+  return parts.join("\n");
+}
+
+function listTagForItem_(item) {
+  const glyph = item.getGlyphType();
+  const ordered = [
+    DocumentApp.GlyphType.NUMBER,
+    DocumentApp.GlyphType.LATIN_UPPER,
+    DocumentApp.GlyphType.LATIN_LOWER,
+    DocumentApp.GlyphType.ROMAN_UPPER,
+    DocumentApp.GlyphType.ROMAN_LOWER
+  ].indexOf(glyph) !== -1;
+
+  return ordered ? "ol" : "ul";
+}
+
 function renderElement_(element) {
   const type = element.getType();
 
@@ -268,19 +320,11 @@ function renderListItem_(item) {
   const content = renderInlineChildren_(item);
   if (!stripHtml_(content).trim() && content.indexOf("<img") === -1) return "";
 
-  const glyph = item.getGlyphType();
-  const ordered = [
-    DocumentApp.GlyphType.NUMBER,
-    DocumentApp.GlyphType.LATIN_UPPER,
-    DocumentApp.GlyphType.LATIN_LOWER,
-    DocumentApp.GlyphType.ROMAN_UPPER,
-    DocumentApp.GlyphType.ROMAN_LOWER
-  ].indexOf(glyph) !== -1;
-
-  const tag = ordered ? "ol" : "ul";
+  const tag = listTagForItem_(item);
   const level = item.getNestingLevel ? item.getNestingLevel() : 0;
 
-  return '<' + tag + ' class="doc-list" data-level="' + level + '"><li>' +
+  return '<' + tag + ' class="doc-list"><li data-level="' + level +
+    '" style="margin-left:' + (level * 1.25) + 'rem">' +
     content + "</li></" + tag + ">";
 }
 
