@@ -23,7 +23,9 @@ function doGet(e) {
   try {
     let payload;
 
-    if (action === "manifest") {
+    if (action === "version") {
+      payload = getVersion_();
+    } else if (action === "manifest") {
       payload = getManifest_();
     } else if (action === "lesson") {
       const subject = String(e.parameter.subject || "").trim();
@@ -51,6 +53,25 @@ function doGet(e) {
       error: error && error.message ? error.message : String(error)
     });
   }
+}
+
+function getVersion_() {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = "version-v1";
+  const cached = cache.get(cacheKey);
+  if (cached) return JSON.parse(cached);
+
+  const file = DriveApp.getFileById(CONFIG.DOCUMENT_ID);
+  const payload = {
+    ok: true,
+    source: "google-doc",
+    documentId: CONFIG.DOCUMENT_ID,
+    title: file.getName(),
+    modifiedAt: file.getLastUpdated().toISOString()
+  };
+
+  cache.put(cacheKey, JSON.stringify(payload), CONFIG.CACHE_SECONDS);
+  return payload;
 }
 
 function getManifest_() {
