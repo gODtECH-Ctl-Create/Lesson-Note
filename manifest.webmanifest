@@ -1,0 +1,18 @@
+{
+  "name": "LessonHub",
+  "short_name": "LessonHub",
+  "description": "Offline-first lesson notes for teachers",
+  "start_url": "./#/terms",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "icons/lessonhub.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
