@@ -1,4 +1,4 @@
-// LessonHub class selection, navigation and lightweight hash routing.
+// LessonHub term selection, class selection and hash routing.
 
 const LESSON_CLASSES = [
   "Nursery 1",
@@ -11,6 +11,7 @@ const LESSON_CLASSES = [
 ];
 
 const ROUTE_SCREENS = {
+  terms: "termScreen",
   classes: "classScreen",
   dashboard: "dashboardScreen",
   lessons: "workspaceScreen",
@@ -18,16 +19,50 @@ const ROUTE_SCREENS = {
   progress: "progressScreen"
 };
 
+const TERM_ICONS = {
+  first: "1",
+  second: "2",
+  third: "3"
+};
+
 function parseRoute() {
-  const raw = (window.location.hash || "#/classes").replace(/^#\/?/, "");
+  const raw = (window.location.hash || "#/terms").replace(/^#\/?/, "");
   const [pathPart, queryPart = ""] = raw.split("?");
-  const route = pathPart || "classes";
+  const segments = pathPart.split("/").filter(Boolean);
   const params = new URLSearchParams(queryPart);
-  return { route, params };
+
+  if (!segments.length || segments[0] === "terms") {
+    return { route: "terms", term: "", params, legacy: false };
+  }
+
+  if (window.LESSON_TERM_CONFIG?.[segments[0]]) {
+    return {
+      term: segments[0],
+      route: segments[1] || "classes",
+      params,
+      legacy: false
+    };
+  }
+
+  // Compatibility with old routes such as #/dashboard.
+  if (ROUTE_SCREENS[segments[0]]) {
+    return {
+      term: window.LessonHubTerm?.get() || "first",
+      route: segments[0],
+      params,
+      legacy: true
+    };
+  }
+
+  return { route: "terms", term: "", params, legacy: false };
 }
 
-function routeHash(route, params = {}) {
+function routeHash(route, params = {}, term = window.LessonHubTerm?.get() || "") {
+  if (route === "terms") return "#/terms";
+
+  const safeTerm = window.LESSON_TERM_CONFIG?.[term] ? term : "first";
   const query = new URLSearchParams();
+
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== null && String(value) !== "") {
       query.set(key, String(value));
@@ -35,11 +70,13 @@ function routeHash(route, params = {}) {
   });
 
   const suffix = query.toString() ? "?" + query.toString() : "";
-  return "#/" + route + suffix;
+  return "#/" + safeTerm + "/" + route + suffix;
 }
 
 function navigate(route, params = {}, options = {}) {
-  const next = routeHash(route, params);
+  const term = options.term || window.LessonHubTerm?.get() || "";
+  const next = routeHash(route, params, term);
+
   if (options.replace) {
     history.replaceState(null, "", next);
     applyRoute();
@@ -60,21 +97,46 @@ function showScreen(screenId) {
   window.scrollTo({ top: 0, behavior: "auto" });
 }
 
-function syncSelectedClass() {
-  const selected = window.LessonHubClass?.get() || "";
-  const bindings = [
-    "dashboardClassName",
-    "selectedClassName",
-    "completedClassName"
-  ];
+function syncContextLabels() {
+  const term = window.LessonHubTerm?.get() || "";
+  const termLabel = window.LessonHubTerm?.label(term) || "";
+  const selectedClass = window.LessonHubClass?.get(term) || "";
 
-  bindings.forEach((id) => {
+  const textBindings = {
+    dashboardClassName: selectedClass || "Class Dashboard",
+    selectedClassName: selectedClass || "Class",
+    completedClassName: selectedClass || "Class",
+    completedTermName: termLabel || "Term",
+    progressTermName: termLabel || "this term",
+    dashboardTermBadge: termLabel,
+    workspaceTermChip: termLabel,
+    classTermEyebrow: termLabel || "Academic term"
+  };
+
+  Object.entries(textBindings).forEach(([id, value]) => {
     const element = document.getElementById(id);
-    if (element) element.textContent = selected || "Class";
+    if (element) element.textContent = value;
   });
 
   const progressClassName = document.getElementById("progressClassName");
-  if (progressClassName) progressClassName.textContent = selected ? selected + " progress" : "Class progress";
+  if (progressClassName) {
+    progressClassName.textContent = selectedClass ? selectedClass + " progress" : "Class progress";
+  }
+
+  const workspaceTermEyebrow = document.getElementById("workspaceTermEyebrow");
+  if (workspaceTermEyebrow) {
+    workspaceTermEyebrow.textContent = termLabel ? termLabel + " lesson notes" : "Lesson notes";
+  }
+
+  const completedTermEyebrow = document.getElementById("completedTermEyebrow");
+  if (completedTermEyebrow) {
+    completedTermEyebrow.textContent = termLabel ? termLabel + " · Completed lessons" : "Completed lessons";
+  }
+
+  const progressTermEyebrow = document.getElementById("progressTermEyebrow");
+  if (progressTermEyebrow) {
+    progressTermEyebrow.textContent = termLabel ? termLabel + " · Class progress" : "Class progress";
+  }
 }
 
 function resetOpenLesson() {
@@ -101,9 +163,10 @@ function renderCompletedLessons() {
   const count = document.getElementById("completedCount");
   if (!list || !window.LessonHubProgress) return;
 
-  const selectedClass = window.LessonHubClass?.get() || "";
-  const records = window.LessonHubProgress.recordsForClass(selectedClass);
-  const completed = window.LessonHubProgress.catalogue().filter((lesson) => (
+  const term = window.LessonHubTerm?.get() || "";
+  const selectedClass = window.LessonHubClass?.get(term) || "";
+  const records = window.LessonHubProgress.recordsForClass(selectedClass, term);
+  const completed = window.LessonHubProgress.catalogue(term).filter((lesson) => (
     records[lesson.key]?.status === "completed"
   ));
 
@@ -114,7 +177,7 @@ function renderCompletedLessons() {
       <div class="empty-state">
         <span class="empty-icon">✅</span>
         <h2>No completed lessons yet</h2>
-        <p>Open a lesson note and mark it as completed. It will appear here automatically.</p>
+        <p>Open a lesson note and mark it as completed. It will appear here automatically for this term.</p>
         <button class="primary-btn" type="button" data-go-lessons>Open lesson notes</button>
       </div>
     `;
@@ -147,10 +210,11 @@ function renderCompletedLessons() {
 function renderProgress() {
   if (!window.LessonHubProgress) return;
 
-  const selectedClass = window.LessonHubClass?.get() || "";
-  const summary = window.LessonHubProgress.summary(selectedClass);
-  const records = window.LessonHubProgress.recordsForClass(selectedClass);
-  const catalogue = window.LessonHubProgress.catalogue();
+  const term = window.LessonHubTerm?.get() || "";
+  const selectedClass = window.LessonHubClass?.get(term) || "";
+  const summary = window.LessonHubProgress.summary(selectedClass, term);
+  const records = window.LessonHubProgress.recordsForClass(selectedClass, term);
+  const catalogue = window.LessonHubProgress.catalogue(term);
 
   const setText = (id, value) => {
     const element = document.getElementById(id);
@@ -169,7 +233,16 @@ function renderProgress() {
   if (!list) return;
 
   if (!catalogue.length) {
-    list.innerHTML = '<div class="empty-state"><h2>No lessons available</h2><p>Lesson progress will appear here once lessons are loaded.</p></div>';
+    const termLabel = window.LessonHubTerm?.label(term) || "This term";
+    list.innerHTML = `
+      <div class="empty-state">
+        <span class="empty-icon">📚</span>
+        <h2>No lessons loaded for ${termLabel}</h2>
+        <p>Connect this term's lesson document, then open Lesson Notes to load its weeks and subjects.</p>
+        <button class="primary-btn" type="button" data-go-lessons>Open lesson notes</button>
+      </div>
+    `;
+    list.querySelector("[data-go-lessons]")?.addEventListener("click", () => navigate("lessons"));
     return;
   }
 
@@ -181,8 +254,7 @@ function renderProgress() {
   });
 
   list.innerHTML = ranked.map((lesson) => {
-    const record = records[lesson.key] || {};
-    const status = record.status || "none";
+    const status = records[lesson.key]?.status || "none";
     const label = status === "completed" ? "Completed" : status === "started" ? "In progress" : "Not started";
     const icon = status === "completed" ? "✓" : status === "started" ? "◐" : "○";
 
@@ -204,38 +276,97 @@ function renderProgress() {
 }
 
 function refreshTrackerPages() {
-  syncSelectedClass();
+  syncContextLabels();
   renderCompletedLessons();
   renderProgress();
 }
 
-function applyRoute() {
-  let { route, params } = parseRoute();
-  const selectedClass = window.LessonHubClass?.get() || "";
+async function applyRoute() {
+  let { route, term, params, legacy } = parseRoute();
 
-  if (!ROUTE_SCREENS[route]) route = "classes";
+  if (!ROUTE_SCREENS[route]) {
+    navigate("terms", {}, { replace: true });
+    return;
+  }
+
+  if (route === "terms") {
+    showScreen("termScreen");
+    return;
+  }
+
+  if (!window.LESSON_TERM_CONFIG?.[term]) {
+    navigate("terms", {}, { replace: true });
+    return;
+  }
+
+  if (window.LessonHubTerm?.get() !== term) {
+    window.LessonHubTerm?.set(term);
+    window.lessonApi?.configureForTerm?.(term);
+  }
+
+  if (legacy) {
+    navigate(route, Object.fromEntries(params.entries()), { term, replace: true });
+    return;
+  }
+
+  const selectedClass = window.LessonHubClass?.get(term) || "";
 
   if (route !== "classes" && !selectedClass) {
-    navigate("classes", {}, { replace: true });
+    navigate("classes", {}, { term, replace: true });
     return;
   }
 
   showScreen(ROUTE_SCREENS[route]);
-  syncSelectedClass();
-
-  if (route === "completed") renderCompletedLessons();
-  if (route === "progress") renderProgress();
+  syncContextLabels();
 
   if (route === "lessons") {
+    await window.LessonHubLessons?.prepareSource?.();
     const week = params.get("week") || "";
     const subject = params.get("subject") || "";
 
     if (week && subject) {
-      window.LessonHubLessons?.restoreFromRoute?.(week, subject);
+      await window.LessonHubLessons?.restoreFromRoute?.(week, subject);
     } else {
       window.LessonHubLessons?.close?.({ updateRoute: false });
     }
   }
+
+  if (route === "completed" || route === "progress") {
+    await window.LessonHubLessons?.prepareSource?.();
+    if (route === "completed") renderCompletedLessons();
+    if (route === "progress") renderProgress();
+  }
+}
+
+function renderTermSelector() {
+  const container = document.getElementById("termSelector");
+  if (!container) return;
+
+  container.innerHTML = window.LessonHubTerm.all().map(({ key, label }) => {
+    const connected = Boolean(window.LESSON_TERM_CONFIG?.[key]?.apiUrl) ||
+      Boolean(window.LESSON_TERM_CONFIG?.[key]?.staticFallback);
+    const sourceText = connected ? "Open term workspace" : "Ready for lesson document";
+
+    return `
+      <button class="term-card" type="button" data-term="${key}">
+        <span class="term-number">${TERM_ICONS[key]}</span>
+        <span class="term-card-copy">
+          <strong>${label}</strong>
+          <small>${sourceText}</small>
+        </span>
+        <span class="class-card-arrow" aria-hidden="true">→</span>
+      </button>
+    `;
+  }).join("");
+
+  container.querySelectorAll("[data-term]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const term = button.dataset.term;
+      window.LessonHubTerm.set(term);
+      window.lessonApi?.configureForTerm?.(term);
+      navigate("classes", {}, { term });
+    });
+  });
 }
 
 function renderClassSelector() {
@@ -255,14 +386,17 @@ function renderClassSelector() {
 
   container.querySelectorAll("[data-class]").forEach((button) => {
     button.addEventListener("click", () => {
-      window.LessonHubClass?.set(button.dataset.class);
-      syncSelectedClass();
+      const term = window.LessonHubTerm?.get() || "";
+      window.LessonHubClass?.set(button.dataset.class, term);
+      syncContextLabels();
       navigate("dashboard");
     });
   });
 }
 
 function setupNavigation() {
+  document.getElementById("classBackBtn")?.addEventListener("click", () => navigate("terms"));
+
   document.getElementById("dashboardBackBtn")?.addEventListener("click", () => {
     resetOpenLesson();
     navigate("classes");
@@ -295,12 +429,13 @@ window.addEventListener("hashchange", applyRoute);
 window.addEventListener("lessonhub:progress-changed", refreshTrackerPages);
 
 document.addEventListener("DOMContentLoaded", () => {
+  renderTermSelector();
   renderClassSelector();
-  syncSelectedClass();
+  syncContextLabels();
   setupNavigation();
 
   if (!window.location.hash) {
-    history.replaceState(null, "", routeHash("classes"));
+    history.replaceState(null, "", routeHash("terms"));
   }
 
   applyRoute();
