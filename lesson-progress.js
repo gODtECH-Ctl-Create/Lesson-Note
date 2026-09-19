@@ -29,7 +29,7 @@
 
   function catalogue() {
     const items = [];
-    const lessons = window.LESSONS || {};
+    const lessons = typeof LESSONS !== "undefined" ? LESSONS : {};
 
     Object.keys(lessons).forEach((week) => {
       Object.keys(lessons[week] || {}).forEach((subject) => {
