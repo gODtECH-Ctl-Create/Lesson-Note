@@ -72,7 +72,7 @@
           <span class="action-icon">📊</span>
           <span class="action-copy">
             <strong>Progress</strong>
-            <small>See class coverage at a glance</small>
+            <small>See completed, in-progress and remaining lessons</small>
           </span>
           <span class="action-arrow" aria-hidden="true">→</span>
         </button>
@@ -125,10 +125,16 @@
 
       <section id="lessonSection" class="lesson-section hidden">
         <div class="lesson-header">
-          <button id="closeLessonBtn" class="nav-back lesson-close" type="button">
-            <span aria-hidden="true">←</span>
-            <span>Choose another lesson</span>
-          </button>
+          <div class="lesson-header-actions">
+            <button id="closeLessonBtn" class="nav-back lesson-close" type="button">
+              <span aria-hidden="true">←</span>
+              <span>Choose another lesson</span>
+            </button>
+            <button id="toggleCompleteBtn" class="complete-btn" type="button" disabled>
+              <span aria-hidden="true">✓</span>
+              <span>Mark as completed</span>
+            </button>
+          </div>
           <div class="lesson-heading">
             <span class="eyebrow">Lesson note</span>
             <h2 id="lessonTitle"></h2>
@@ -136,6 +142,94 @@
           </div>
         </div>
         <div id="lessonContainer"></div>
+      </section>
+    </div>
+  </section>
+
+  <section id="completedScreen" class="screen app-screen tracker-screen hidden">
+    <div class="page-shell tracker-shell">
+      <header class="topbar">
+        <button id="completedBackBtn" class="nav-back" type="button" aria-label="Back to class dashboard">
+          <span aria-hidden="true">←</span>
+          <span>Dashboard</span>
+        </button>
+        <div class="brand-lockup">
+          <span class="brand-mark">📘</span>
+          <span class="brand-name">LessonHub</span>
+        </div>
+        <span class="topbar-spacer" aria-hidden="true"></span>
+      </header>
+
+      <section class="page-summary">
+        <div>
+          <span class="eyebrow">Completed lessons</span>
+          <h1>Finished lessons</h1>
+          <p>Lessons marked complete for <strong id="completedClassName"></strong>.</p>
+        </div>
+        <div class="summary-count">
+          <strong id="completedCount">0</strong>
+          <span>completed</span>
+        </div>
+      </section>
+
+      <div id="completedList" class="lesson-status-list"></div>
+    </div>
+  </section>
+
+  <section id="progressScreen" class="screen app-screen tracker-screen hidden">
+    <div class="page-shell tracker-shell">
+      <header class="topbar">
+        <button id="progressBackBtn" class="nav-back" type="button" aria-label="Back to class dashboard">
+          <span aria-hidden="true">←</span>
+          <span>Dashboard</span>
+        </button>
+        <div class="brand-lockup">
+          <span class="brand-mark">📘</span>
+          <span class="brand-name">LessonHub</span>
+        </div>
+        <span class="topbar-spacer" aria-hidden="true"></span>
+      </header>
+
+      <section class="page-summary progress-summary">
+        <div>
+          <span class="eyebrow">Class progress</span>
+          <h1 id="progressClassName">Progress</h1>
+          <p>Track lesson coverage across the available weeks and subjects.</p>
+        </div>
+        <div class="progress-percent">
+          <strong id="progressPercent">0%</strong>
+          <span>complete</span>
+        </div>
+      </section>
+
+      <section class="progress-overview">
+        <div class="progress-track" aria-label="Lesson completion progress">
+          <div id="progressBar" class="progress-fill"></div>
+        </div>
+        <div class="progress-stats">
+          <article class="progress-stat">
+            <span class="stat-icon stat-completed">✓</span>
+            <div><strong id="progressCompletedCount">0</strong><small>Completed</small></div>
+          </article>
+          <article class="progress-stat">
+            <span class="stat-icon stat-started">◐</span>
+            <div><strong id="progressStartedCount">0</strong><small>In progress</small></div>
+          </article>
+          <article class="progress-stat">
+            <span class="stat-icon stat-remaining">○</span>
+            <div><strong id="progressRemainingCount">0</strong><small>Not started</small></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="progress-detail">
+        <div class="section-heading-row">
+          <div>
+            <span class="eyebrow">Lesson activity</span>
+            <h2>Current status</h2>
+          </div>
+        </div>
+        <div id="progressLessonList" class="lesson-status-list"></div>
       </section>
     </div>
   </section>
@@ -147,6 +241,7 @@
 <script src="format-ranges-3.js"></script>
 <script src="format-ranges-4.js"></script>
 <script src="class-selection.js"></script>
+<script src="lesson-progress.js"></script>
 <script src="class-dashboard.js"></script>
 <script src="class-ui.js"></script>
 <script src="live-api.js"></script>
