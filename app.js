@@ -887,7 +887,7 @@ async function viewSelectedLesson() {
     return;
   }
 
-  if (sourceMode === "live" && navigator.onLine && window.lessonApi?.enabled) {
+  if (navigator.onLine && window.lessonApi?.enabled) {
     try {
       const lesson = await window.lessonApi.call("lesson", { subject, week });
       await window.LessonHubOffline?.saveLesson(
@@ -1013,3 +1013,12 @@ window.addEventListener("lessonhub:network-changed", (event) => {
 });
 
 window.addEventListener("lessonhub:progress-changed", updateCompletionButton);
+
+// Keep long-running installed sessions fresh without repeatedly hitting Apps Script.
+// This timer only performs a network check once the six-hour window has elapsed.
+window.setInterval(() => {
+  if (!navigator.onLine || !shouldCheckForUpdates()) return;
+  checkForUpdates({ silent: true }).catch((error) => {
+    console.warn("Scheduled lesson update check failed.", error);
+  });
+}, 60 * 60 * 1000);
