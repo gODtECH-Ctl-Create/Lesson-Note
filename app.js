@@ -321,7 +321,8 @@ function renderStaticLesson(lesson, week, subject) {
   article.appendChild(body);
 
   lessonContainer.appendChild(article);
-  lessonMeta.textContent = ["Basic 3", "2026", week, lesson.dates].filter(Boolean).join(" · ");
+  const activeClass = window.LessonHubClass?.get() || "Class";
+  lessonMeta.textContent = [activeClass, "2026", week, lesson.dates].filter(Boolean).join(" · ");
   lessonTitle.textContent = subject;
 }
 
@@ -344,7 +345,8 @@ function renderLiveLesson(lesson) {
   article.appendChild(body);
 
   lessonContainer.appendChild(article);
-  lessonMeta.textContent = ["Basic 3", "2026", lesson.week, lesson.dates].filter(Boolean).join(" · ");
+  const activeClass = window.LessonHubClass?.get() || "Class";
+  lessonMeta.textContent = [activeClass, "2026", lesson.week, lesson.dates].filter(Boolean).join(" · ");
   lessonTitle.textContent = lesson.subject;
 }
 
@@ -356,7 +358,8 @@ async function viewSelectedLesson() {
 
   lessonSection.classList.remove("hidden");
   lessonTitle.textContent = subject;
-  lessonMeta.textContent = ["Basic 3", "2026", week].join(" · ");
+  const activeClass = window.LessonHubClass?.get() || "Class";
+  lessonMeta.textContent = [activeClass, "2026", week].join(" · ");
   lessonContainer.innerHTML = '<p class="placeholder">Loading lesson…</p>';
   lessonSection.scrollIntoView({ behavior: "smooth", block: "start" });
 
