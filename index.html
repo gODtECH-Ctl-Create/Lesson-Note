@@ -14,59 +14,130 @@
     <p>Smart lesson management for teachers</p>
   </section>
 
-  <section id="classScreen" class="screen app-screen">
-    <div class="app-brand">LESSONHUB</div>
-    <h1>Welcome to LessonHub</h1>
-    <p class="intro">Choose the class you are teaching.</p>
-    <div id="classSelector" class="class-grid"></div>
-  </section>
-
-  <section id="dashboardScreen" class="screen app-screen hidden">
-    <div class="app-brand">LESSONHUB</div>
-    <button id="dashboardBackBtn" class="secondary-btn">← Back</button>
-    <h1 id="dashboardClassName"></h1>
-    <p class="intro">Teacher dashboard</p>
-    <div class="dashboard-grid">
-      <button id="openLessonsBtn">📚 Lesson Notes</button>
-      <button id="openCompletedBtn">✅ Completed Lessons</button>
-      <button id="openProgressBtn">📊 Progress</button>
+  <section id="classScreen" class="screen app-screen class-screen">
+    <div class="page-shell class-shell">
+      <div class="brand-lockup brand-centered">
+        <span class="brand-mark">📘</span>
+        <span class="brand-name">LessonHub</span>
+      </div>
+      <div class="class-intro">
+        <span class="eyebrow">Teacher workspace</span>
+        <h1>Choose your class</h1>
+        <p class="intro">Select the class you are teaching to open its dashboard.</p>
+      </div>
+      <div id="classSelector" class="class-grid"></div>
     </div>
   </section>
 
-  <section id="workspaceScreen" class="screen app-screen hidden">
-    <div class="workspace-header">
-      <button id="workspaceBackBtn" class="secondary-btn">← Back to Dashboard</button>
-      <div class="app-brand">LESSONHUB</div>
+  <section id="dashboardScreen" class="screen app-screen dashboard-screen hidden">
+    <div class="page-shell dashboard-shell">
+      <header class="topbar">
+        <button id="dashboardBackBtn" class="nav-back" type="button" aria-label="Back to class selection">
+          <span aria-hidden="true">←</span>
+          <span>Classes</span>
+        </button>
+        <div class="brand-lockup">
+          <span class="brand-mark">📘</span>
+          <span class="brand-name">LessonHub</span>
+        </div>
+        <span class="topbar-spacer" aria-hidden="true"></span>
+      </header>
+
+      <section class="dashboard-hero">
+        <div class="class-badge">Current class</div>
+        <h1 id="dashboardClassName"></h1>
+        <p>Everything you need for this class in one place.</p>
+      </section>
+
+      <section class="dashboard-actions" aria-label="Class tools">
+        <button id="openLessonsBtn" class="dashboard-action dashboard-action-primary" type="button">
+          <span class="action-icon">📚</span>
+          <span class="action-copy">
+            <strong>Lesson Notes</strong>
+            <small>Browse lessons by week and subject</small>
+          </span>
+          <span class="action-arrow" aria-hidden="true">→</span>
+        </button>
+
+        <button id="openCompletedBtn" class="dashboard-action" type="button">
+          <span class="action-icon">✅</span>
+          <span class="action-copy">
+            <strong>Completed Lessons</strong>
+            <small>Review lessons you have finished</small>
+          </span>
+          <span class="action-arrow" aria-hidden="true">→</span>
+        </button>
+
+        <button id="openProgressBtn" class="dashboard-action" type="button">
+          <span class="action-icon">📊</span>
+          <span class="action-copy">
+            <strong>Progress</strong>
+            <small>See class coverage at a glance</small>
+          </span>
+          <span class="action-arrow" aria-hidden="true">→</span>
+        </button>
+      </section>
     </div>
+  </section>
 
-    <div class="selected-class-banner">Current Class: <strong id="selectedClassName"></strong></div>
+  <section id="workspaceScreen" class="screen app-screen workspace-screen hidden">
+    <div class="page-shell workspace-shell">
+      <header class="topbar workspace-topbar">
+        <button id="workspaceBackBtn" class="nav-back" type="button" aria-label="Back to class dashboard">
+          <span aria-hidden="true">←</span>
+          <span>Dashboard</span>
+        </button>
+        <div class="brand-lockup">
+          <span class="brand-mark">📘</span>
+          <span class="brand-name">LessonHub</span>
+        </div>
+        <span class="topbar-spacer" aria-hidden="true"></span>
+      </header>
 
-    <div class="source-bar">
-      <div>
-        <span id="sourceStatus" class="status-pill">Loading lesson source…</span>
-        <small id="sourceUpdated"></small>
+      <section class="workspace-summary">
+        <div>
+          <span class="eyebrow">Lesson notes</span>
+          <h1>Plan your lesson</h1>
+          <p>Choose an academic week and subject to open the lesson note.</p>
+        </div>
+        <div class="selected-class-chip">Class <strong id="selectedClassName"></strong></div>
+      </section>
+
+      <div class="source-bar">
+        <div class="source-copy">
+          <span id="sourceStatus" class="status-pill">Loading lesson source…</span>
+          <small id="sourceUpdated"></small>
+        </div>
+        <button id="refreshSourceBtn" class="icon-btn" type="button">Refresh</button>
       </div>
-      <button id="refreshSourceBtn" class="secondary-btn">Refresh</button>
+
+      <section class="selector-card">
+        <div class="field">
+          <label for="weekSelect">Academic Week</label>
+          <select id="weekSelect"></select>
+        </div>
+        <div class="field">
+          <label for="subjectSelect">Subject</label>
+          <select id="subjectSelect"></select>
+        </div>
+        <button id="viewLessonBtn" class="primary-btn" type="button">View Lesson</button>
+      </section>
+
+      <section id="lessonSection" class="lesson-section hidden">
+        <div class="lesson-header">
+          <button id="closeLessonBtn" class="nav-back lesson-close" type="button">
+            <span aria-hidden="true">←</span>
+            <span>Choose another lesson</span>
+          </button>
+          <div class="lesson-heading">
+            <span class="eyebrow">Lesson note</span>
+            <h2 id="lessonTitle"></h2>
+            <p id="lessonMeta"></p>
+          </div>
+        </div>
+        <div id="lessonContainer"></div>
+      </section>
     </div>
-
-    <section class="selector-card">
-      <div class="field">
-        <label for="weekSelect">Academic Week</label>
-        <select id="weekSelect"></select>
-      </div>
-      <div class="field">
-        <label for="subjectSelect">Subject</label>
-        <select id="subjectSelect"></select>
-      </div>
-      <button id="viewLessonBtn">View Lesson</button>
-    </section>
-
-    <section id="lessonSection" class="lesson-section hidden">
-      <button id="closeLessonBtn" class="secondary-btn">Close Lesson</button>
-      <h2 id="lessonTitle"></h2>
-      <p id="lessonMeta"></p>
-      <div id="lessonContainer"></div>
-    </section>
   </section>
 </div>
 <script src="config.js"></script>
@@ -76,6 +147,7 @@
 <script src="format-ranges-3.js"></script>
 <script src="format-ranges-4.js"></script>
 <script src="class-selection.js"></script>
+<script src="class-dashboard.js"></script>
 <script src="class-ui.js"></script>
 <script src="live-api.js"></script>
 <script src="splash.js"></script>
