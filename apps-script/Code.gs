@@ -56,27 +56,24 @@ function doGet(e) {
 }
 
 function getVersion_() {
-  const cache = CacheService.getScriptCache();
-  const cacheKey = "version-v1";
-  const cached = cache.get(cacheKey);
-  if (cached) return JSON.parse(cached);
-
+  // Intentionally tiny and uncached. The frontend calls this only occasionally,
+  // and it lets us detect document changes without parsing the Google Doc.
   const file = DriveApp.getFileById(CONFIG.DOCUMENT_ID);
-  const payload = {
+
+  return {
     ok: true,
     source: "google-doc",
     documentId: CONFIG.DOCUMENT_ID,
     title: file.getName(),
     modifiedAt: file.getLastUpdated().toISOString()
   };
-
-  cache.put(cacheKey, JSON.stringify(payload), CONFIG.CACHE_SECONDS);
-  return payload;
 }
 
 function getManifest_() {
   const cache = CacheService.getScriptCache();
-  const cacheKey = "manifest-v3";
+  const file = DriveApp.getFileById(CONFIG.DOCUMENT_ID);
+  const modifiedAt = file.getLastUpdated().toISOString();
+  const cacheKey = "manifest-v4:" + modifiedAt;
   const cached = cache.get(cacheKey);
   if (cached) return JSON.parse(cached);
 
@@ -115,7 +112,7 @@ function getManifest_() {
     ok: true,
     title: doc.getName(),
     source: "google-doc",
-    modifiedAt: DriveApp.getFileById(CONFIG.DOCUMENT_ID).getLastUpdated().toISOString(),
+    modifiedAt: modifiedAt,
     subjects: subjects
   };
 
@@ -128,7 +125,9 @@ function getLesson_(subjectName, weekLabel) {
   if (!weekNumber) throw new Error("Invalid week: " + weekLabel);
 
   const cache = CacheService.getScriptCache();
-  const cacheKey = "lesson-v3:" + subjectName.toLowerCase() + ":" + weekNumber;
+  const file = DriveApp.getFileById(CONFIG.DOCUMENT_ID);
+  const modifiedAt = file.getLastUpdated().toISOString();
+  const cacheKey = "lesson-v4:" + modifiedAt + ":" + subjectName.toLowerCase() + ":" + weekNumber;
   const cached = cache.get(cacheKey);
   if (cached) return JSON.parse(cached);
 
@@ -174,7 +173,7 @@ function getLesson_(subjectName, weekLabel) {
     dates: headingInfo ? headingInfo.dates : "",
     topic: headingInfo ? headingInfo.topic : "",
     html: renderedHtml,
-    modifiedAt: DriveApp.getFileById(CONFIG.DOCUMENT_ID).getLastUpdated().toISOString()
+    modifiedAt: modifiedAt
   };
 
   cache.put(cacheKey, JSON.stringify(payload), CONFIG.CACHE_SECONDS);
