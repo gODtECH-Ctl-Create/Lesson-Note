@@ -15,7 +15,20 @@ let sourceMode = "static";
 let lessonIndex = {};
 let liveManifest = null;
 let activeLesson = null;
+let loadedTerm = "";
+let sourcePromise = null;
 
+function currentTerm() {
+  return window.LessonHubTerm?.get() || "first";
+}
+
+function currentTermLabel() {
+  return window.LessonHubTerm?.label(currentTerm()) || "First Term";
+}
+
+function currentClass() {
+  return window.LessonHubClass?.get(currentTerm()) || "Class";
+}
 
 function updateCompletionButton() {
   if (!toggleCompleteBtn) return;
@@ -27,7 +40,13 @@ function updateCompletionButton() {
     return;
   }
 
-  const completed = window.LessonHubProgress?.isCompleted(activeLesson.week, activeLesson.subject) || false;
+  const completed = window.LessonHubProgress?.isCompleted(
+    activeLesson.week,
+    activeLesson.subject,
+    currentClass(),
+    currentTerm()
+  ) || false;
+
   toggleCompleteBtn.disabled = false;
   toggleCompleteBtn.classList.toggle("is-completed", completed);
   toggleCompleteBtn.querySelector("span:last-child").textContent = completed ? "Completed" : "Mark as completed";
@@ -39,7 +58,7 @@ function syncLessonRoute(week = "", subject = "") {
 
 function setActiveLesson(week, subject) {
   activeLesson = { week, subject };
-  window.LessonHubProgress?.markStarted(week, subject);
+  window.LessonHubProgress?.markStarted(week, subject, currentClass(), currentTerm());
   updateCompletionButton();
 }
 
@@ -96,6 +115,21 @@ function buildLiveIndex(manifest) {
   return result;
 }
 
+function indexToCatalogue(index) {
+  const items = [];
+  Object.keys(index || {}).forEach((week) => {
+    Object.keys(index[week] || {}).forEach((subject) => {
+      items.push({
+        week,
+        subject,
+        topic: index[week][subject]?.topic || "",
+        dates: index[week][subject]?.dates || ""
+      });
+    });
+  });
+  return items;
+}
+
 function populateWeeks() {
   clearSelect(weekSelect, "Select week", false);
   clearSelect(subjectSelect, "Select subject", true);
@@ -109,6 +143,10 @@ function populateWeeks() {
       option.textContent = week;
       weekSelect.appendChild(option);
     });
+
+  if (!Object.keys(lessonIndex).length) {
+    clearSelect(weekSelect, "No lessons available", true);
+  }
 }
 
 function populateSubjects() {
@@ -133,7 +171,7 @@ function populateSubjects() {
 function setSourceStatus(mode, message, updatedAt = "") {
   sourceMode = mode;
   sourceStatus.textContent = message;
-  sourceStatus.className = "status-pill " + (mode === "live" ? "live" : "snapshot");
+  sourceStatus.className = "status-pill " + (mode === "live" ? "live" : mode === "missing" ? "missing" : "snapshot");
 
   if (updatedAt) {
     const date = new Date(updatedAt);
@@ -145,42 +183,69 @@ function setSourceStatus(mode, message, updatedAt = "") {
   }
 }
 
-async function loadSource() {
-  refreshSourceBtn.disabled = true;
-  sourceStatus.textContent = "Loading lesson source…";
-  sourceStatus.className = "status-pill";
-  sourceUpdated.textContent = "";
-  clearSelect(weekSelect, "Loading weeks…", true);
-  clearSelect(subjectSelect, "Select subject", true);
-  viewLessonBtn.disabled = true;
+async function loadSource(force = false) {
+  const term = currentTerm();
 
-  if (window.lessonApi?.enabled) {
-    try {
-      liveManifest = await window.lessonApi.call("manifest");
-      lessonIndex = buildLiveIndex(liveManifest);
-
-      if (!Object.keys(lessonIndex).length) {
-        throw new Error("The live Google Doc did not return any WEEK headings.");
-      }
-
-      populateWeeks();
-      setSourceStatus("live", "Live Google Doc", liveManifest.modifiedAt);
-      refreshSourceBtn.disabled = false;
-      return;
-    } catch (error) {
-      console.warn("Live source unavailable; using snapshot.", error);
-    }
+  if (!force && loadedTerm === term && sourcePromise) {
+    return sourcePromise;
   }
 
-  lessonIndex = buildStaticIndex();
-  populateWeeks();
+  loadedTerm = term;
+  sourcePromise = (async () => {
+    refreshSourceBtn.disabled = true;
+    sourceStatus.textContent = "Loading " + currentTermLabel() + " lesson source…";
+    sourceStatus.className = "status-pill";
+    sourceUpdated.textContent = "";
+    clearSelect(weekSelect, "Loading weeks…", true);
+    clearSelect(subjectSelect, "Select subject", true);
+    viewLessonBtn.disabled = true;
+    closeLesson({ updateRoute: false });
 
-  const reason = window.lessonApi?.enabled
-    ? "Live source unavailable · using saved snapshot"
-    : "Saved snapshot · live source not connected yet";
+    const termConfig = window.LessonHubTerm?.config(term) || {};
+    window.lessonApi?.configureForTerm?.(term);
 
-  setSourceStatus("static", reason);
-  refreshSourceBtn.disabled = false;
+    if (window.lessonApi?.enabled) {
+      try {
+        liveManifest = await window.lessonApi.call("manifest");
+        lessonIndex = buildLiveIndex(liveManifest);
+
+        if (!Object.keys(lessonIndex).length) {
+          throw new Error("The live Google Doc did not return any WEEK headings.");
+        }
+
+        populateWeeks();
+        window.LessonHubProgress?.setCatalogue(indexToCatalogue(lessonIndex), term);
+        setSourceStatus("live", currentTermLabel() + " · Live Google Doc", liveManifest.modifiedAt);
+        refreshSourceBtn.disabled = false;
+        return lessonIndex;
+      } catch (error) {
+        console.warn("Live source unavailable for " + currentTermLabel() + ".", error);
+      }
+    }
+
+    if (termConfig.staticFallback && term === "first") {
+      lessonIndex = buildStaticIndex();
+      populateWeeks();
+      window.LessonHubProgress?.setCatalogue(indexToCatalogue(lessonIndex), term);
+
+      const reason = window.lessonApi?.enabled
+        ? currentTermLabel() + " · Live source unavailable · using saved snapshot"
+        : currentTermLabel() + " · Saved snapshot";
+
+      setSourceStatus("static", reason);
+      refreshSourceBtn.disabled = false;
+      return lessonIndex;
+    }
+
+    lessonIndex = {};
+    populateWeeks();
+    setSourceStatus("missing", currentTermLabel() + " · Lesson document not connected yet");
+    sourceUpdated.textContent = "Add this term's Google Apps Script /exec URL in config.js.";
+    refreshSourceBtn.disabled = false;
+    return lessonIndex;
+  })();
+
+  return sourcePromise;
 }
 
 function escapeHtml(value) {
@@ -331,6 +396,16 @@ function renderStaticDocumentContent(content) {
   return html;
 }
 
+function setLessonMeta(week, dates = "") {
+  lessonMeta.textContent = [
+    currentTermLabel(),
+    currentClass(),
+    "2026",
+    week,
+    dates
+  ].filter(Boolean).join(" · ");
+}
+
 function renderStaticLesson(lesson, week, subject) {
   lessonContainer.innerHTML = "";
 
@@ -351,8 +426,7 @@ function renderStaticLesson(lesson, week, subject) {
 
   lessonContainer.appendChild(article);
   setActiveLesson(week, subject);
-  const activeClass = window.LessonHubClass?.get() || "Class";
-  lessonMeta.textContent = [activeClass, "2026", week, lesson.dates].filter(Boolean).join(" · ");
+  setLessonMeta(week, lesson.dates);
   lessonTitle.textContent = subject;
 }
 
@@ -376,8 +450,7 @@ function renderLiveLesson(lesson) {
 
   lessonContainer.appendChild(article);
   setActiveLesson(lesson.week, lesson.subject);
-  const activeClass = window.LessonHubClass?.get() || "Class";
-  lessonMeta.textContent = [activeClass, "2026", lesson.week, lesson.dates].filter(Boolean).join(" · ");
+  setLessonMeta(lesson.week, lesson.dates);
   lessonTitle.textContent = lesson.subject;
 }
 
@@ -389,8 +462,7 @@ async function viewSelectedLesson() {
 
   lessonSection.classList.remove("hidden");
   lessonTitle.textContent = subject;
-  const activeClass = window.LessonHubClass?.get() || "Class";
-  lessonMeta.textContent = [activeClass, "2026", week].join(" · ");
+  setLessonMeta(week);
   lessonContainer.innerHTML = '<p class="placeholder">Loading lesson…</p>';
   activeLesson = { week, subject };
   updateCompletionButton();
@@ -407,6 +479,12 @@ async function viewSelectedLesson() {
         '<p class="error">Could not load the live lesson. Refresh the source and try again.</p>';
       return;
     }
+  }
+
+  if (currentTerm() !== "first") {
+    lessonContainer.innerHTML =
+      '<p class="error">This term\'s lesson document is not connected yet.</p>';
+    return;
   }
 
   const lesson = LESSONS?.[week]?.[subject];
@@ -443,18 +521,29 @@ closeLessonBtn.addEventListener("click", () => closeLesson());
 toggleCompleteBtn?.addEventListener("click", () => {
   if (!activeLesson?.week || !activeLesson?.subject || !window.LessonHubProgress) return;
 
-  const completed = window.LessonHubProgress.isCompleted(activeLesson.week, activeLesson.subject);
-  window.LessonHubProgress.setCompleted(activeLesson.week, activeLesson.subject, !completed);
+  const completed = window.LessonHubProgress.isCompleted(
+    activeLesson.week,
+    activeLesson.subject,
+    currentClass(),
+    currentTerm()
+  );
+
+  window.LessonHubProgress.setCompleted(
+    activeLesson.week,
+    activeLesson.subject,
+    !completed,
+    currentClass(),
+    currentTerm()
+  );
+
   updateCompletionButton();
 });
 
-refreshSourceBtn.addEventListener("click", loadSource);
-
-const sourceReady = loadSource();
+refreshSourceBtn.addEventListener("click", () => loadSource(true));
 
 async function restoreFromRoute(week, subject) {
   if (!week || !subject) return;
-  await sourceReady;
+  await loadSource();
 
   const weekExists = [...weekSelect.options].some((option) => option.value === week);
   if (!weekExists) return;
@@ -471,8 +560,17 @@ async function restoreFromRoute(week, subject) {
 }
 
 window.LessonHubLessons = {
+  prepareSource: () => loadSource(),
   restoreFromRoute,
   close: closeLesson
 };
+
+window.addEventListener("lessonhub:term-selected", () => {
+  loadedTerm = "";
+  sourcePromise = null;
+  lessonIndex = {};
+  closeLesson({ updateRoute: false });
+  window.lessonApi?.configureForTerm?.(currentTerm());
+});
 
 window.addEventListener("lessonhub:progress-changed", updateCompletionButton);
