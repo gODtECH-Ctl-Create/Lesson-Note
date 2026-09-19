@@ -76,7 +76,7 @@
     return [term, week, subject].map((value) => String(value || "").trim()).join("::");
   }
 
-  async function saveLesson(term, lesson, kind = "live") {
+  async function saveLesson(term, lesson, kind = "live", sourceModifiedAt = "") {
     if (!term || !lesson?.week || !lesson?.subject) return null;
 
     return put(LESSONS, {
@@ -86,6 +86,7 @@
       subject: lesson.subject,
       kind,
       lesson,
+      sourceModifiedAt: sourceModifiedAt || lesson.modifiedAt || "",
       savedAt: new Date().toISOString()
     });
   }
