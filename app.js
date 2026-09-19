@@ -21,6 +21,9 @@ let liveManifest = null;
 let activeLesson = null;
 let loadedTerm = "";
 let sourcePromise = null;
+let updateCheckInFlight = null;
+
+const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 function currentTerm() {
   return window.LessonHubTerm?.get() || "first";
@@ -175,7 +178,8 @@ function populateSubjects() {
 function setSourceStatus(mode, message, updatedAt = "") {
   sourceMode = mode;
   sourceStatus.textContent = message;
-  sourceStatus.className = "status-pill " + (mode === "live" ? "live" : mode === "missing" ? "missing" : "snapshot");
+  const statusClass = ["live", "missing", "cached"].includes(mode) ? mode : "snapshot";
+  sourceStatus.className = "status-pill " + statusClass;
 
   if (updatedAt) {
     const date = new Date(updatedAt);
@@ -261,6 +265,115 @@ async function useCachedManifest(term) {
   }
 }
 
+function lastUpdateCheckKey(term = currentTerm()) {
+  return "lessonhub_last_update_check_" + term;
+}
+
+function markUpdateChecked(term = currentTerm()) {
+  localStorage.setItem(lastUpdateCheckKey(term), String(Date.now()));
+}
+
+function shouldCheckForUpdates(term = currentTerm()) {
+  const last = Number(localStorage.getItem(lastUpdateCheckKey(term)) || 0);
+  return !last || Date.now() - last >= UPDATE_CHECK_INTERVAL_MS;
+}
+
+async function checkForUpdates(options = {}) {
+  const term = currentTerm();
+  const silent = Boolean(options.silent);
+
+  if (!navigator.onLine) {
+    if (!silent) {
+      setSourceStatus("cached", currentTermLabel() + " · Offline · using saved lessons");
+      sourceUpdated.textContent = "Connect to the internet to check for new updates.";
+    }
+    await refreshOfflinePanel(term);
+    return { checked: false, changed: false, offline: true };
+  }
+
+  if (updateCheckInFlight) return updateCheckInFlight;
+
+  updateCheckInFlight = (async () => {
+    window.lessonApi?.configureForTerm?.(term);
+
+    if (!window.lessonApi?.enabled) {
+      return { checked: false, changed: false };
+    }
+
+    const cachedManifest = window.LessonHubOffline?.supported
+      ? await window.LessonHubOffline.getManifest(term).catch(() => null)
+      : null;
+
+    if (!silent) {
+      refreshSourceBtn.disabled = true;
+      sourceStatus.textContent = "Checking " + currentTermLabel() + " for updates…";
+      sourceStatus.className = "status-pill";
+    }
+
+    try {
+      let version;
+
+      try {
+        version = await window.lessonApi.call("version");
+      } catch (versionError) {
+        // Older Apps Script deployments do not know the version action yet.
+        // Fall back to the manifest so the app keeps working until redeployed.
+        console.warn("Version endpoint unavailable; falling back to manifest.", versionError);
+        loadedTerm = "";
+        sourcePromise = null;
+        const result = await loadSource(true);
+        markUpdateChecked(term);
+        return { checked: true, changed: true, fallback: true, result };
+      }
+
+      markUpdateChecked(term);
+
+      const localVersion = cachedManifest?.modifiedAt || liveManifest?.modifiedAt || "";
+      const remoteVersion = version?.modifiedAt || "";
+
+      if (localVersion && remoteVersion && localVersion === remoteVersion) {
+        if (!silent) {
+          setSourceStatus(
+            cachedManifest ? "cached" : "live",
+            currentTermLabel() + " · Everything is up to date",
+            remoteVersion
+          );
+          sourceUpdated.textContent = "Checked just now · no new lesson updates.";
+        }
+        await refreshOfflinePanel(term);
+        return { checked: true, changed: false, version: remoteVersion };
+      }
+
+      loadedTerm = "";
+      sourcePromise = null;
+      await loadSource(true);
+
+      if (!silent) {
+        sourceUpdated.textContent = "New lesson updates were found.";
+      }
+
+      await refreshOfflinePanel(term);
+      return { checked: true, changed: true, version: remoteVersion };
+    } finally {
+      refreshSourceBtn.disabled = false;
+      updateCheckInFlight = null;
+    }
+  })();
+
+  return updateCheckInFlight;
+}
+
+function scheduleAutomaticUpdateCheck(term = currentTerm()) {
+  if (!navigator.onLine || !shouldCheckForUpdates(term)) return;
+
+  window.setTimeout(() => {
+    if (currentTerm() !== term || !navigator.onLine) return;
+    checkForUpdates({ silent: true }).catch((error) => {
+      console.warn("Automatic lesson update check failed.", error);
+    });
+  }, 1200);
+}
+
 async function loadSource(force = false) {
   const term = currentTerm();
 
@@ -294,6 +407,7 @@ async function loadSource(force = false) {
       setSourceStatus("cached", currentTermLabel() + " · Saved on this device", cachedManifest.modifiedAt || "");
       refreshSourceBtn.disabled = false;
       await refreshOfflinePanel(term);
+      scheduleAutomaticUpdateCheck(term);
       return lessonIndex;
     }
 
@@ -349,6 +463,7 @@ async function loadSource(force = false) {
       );
       refreshSourceBtn.disabled = false;
       await refreshOfflinePanel(term);
+      scheduleAutomaticUpdateCheck(term);
       return lessonIndex;
     }
 
@@ -456,7 +571,12 @@ async function downloadCurrentTerm() {
               subject: item.subject,
               week: item.week
             });
-            await window.LessonHubOffline.saveLesson(term, lesson, "live");
+            await window.LessonHubOffline.saveLesson(
+        term,
+        lesson,
+        "live",
+        liveManifest?.modifiedAt || lesson.modifiedAt || ""
+      );
           }
         } catch (error) {
           failed += 1;
@@ -730,8 +850,39 @@ async function viewSelectedLesson() {
   if (cached?.lesson) {
     if (cached.kind === "static") {
       renderStaticLesson(cached.lesson, week, subject);
-    } else {
-      renderLiveLesson(cached.lesson);
+      return;
+    }
+
+    renderLiveLesson(cached.lesson);
+
+    const currentVersion = liveManifest?.modifiedAt || "";
+    const stale = Boolean(
+      navigator.onLine &&
+      window.lessonApi?.enabled &&
+      currentVersion &&
+      cached.sourceModifiedAt !== currentVersion
+    );
+
+    if (!stale) return;
+
+    // Stale-while-revalidate: show the saved lesson immediately, then quietly
+    // replace it with the newer copy if this lesson changed upstream.
+    try {
+      const freshLesson = await window.lessonApi.call("lesson", { subject, week });
+      await window.LessonHubOffline.saveLesson(
+        currentTerm(),
+        freshLesson,
+        "live",
+        currentVersion || freshLesson.modifiedAt || ""
+      );
+
+      if (activeLesson?.week === week && activeLesson?.subject === subject) {
+        renderLiveLesson(freshLesson);
+      }
+
+      await refreshOfflinePanel();
+    } catch (error) {
+      console.warn("Could not refresh the saved lesson.", error);
     }
     return;
   }
@@ -739,7 +890,12 @@ async function viewSelectedLesson() {
   if (sourceMode === "live" && navigator.onLine && window.lessonApi?.enabled) {
     try {
       const lesson = await window.lessonApi.call("lesson", { subject, week });
-      await window.LessonHubOffline?.saveLesson(currentTerm(), lesson, "live").catch(() => {});
+      await window.LessonHubOffline?.saveLesson(
+        currentTerm(),
+        lesson,
+        "live",
+        liveManifest?.modifiedAt || lesson.modifiedAt || ""
+      ).catch(() => {});
       renderLiveLesson(lesson);
       await refreshOfflinePanel();
       return;
@@ -810,16 +966,7 @@ toggleCompleteBtn?.addEventListener("click", () => {
 });
 
 refreshSourceBtn.addEventListener("click", async () => {
-  if (!navigator.onLine) {
-    setSourceStatus("cached", currentTermLabel() + " · Offline · using saved lessons");
-    sourceUpdated.textContent = "Connect to the internet to check for new updates.";
-    await refreshOfflinePanel();
-    return;
-  }
-
-  loadedTerm = "";
-  sourcePromise = null;
-  await loadSource(true);
+  await checkForUpdates({ silent: false });
 });
 
 downloadOfflineBtn?.addEventListener("click", downloadCurrentTerm);
@@ -858,8 +1005,11 @@ window.addEventListener("lessonhub:term-selected", () => {
   refreshOfflinePanel();
 });
 
-window.addEventListener("lessonhub:network-changed", () => {
+window.addEventListener("lessonhub:network-changed", (event) => {
   refreshOfflinePanel();
+  if (event.detail?.online) {
+    scheduleAutomaticUpdateCheck();
+  }
 });
 
 window.addEventListener("lessonhub:progress-changed", updateCompletionButton);
