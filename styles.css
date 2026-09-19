@@ -613,3 +613,348 @@ select:disabled{
  .lesson-heading h2{font-size:1.35rem}
  .lesson-text{font-size:.94rem}
 }
+
+
+/* Completed lessons and progress views */
+.tracker-shell{
+ padding:18px 0 60px;
+}
+
+.page-summary{
+ display:flex;
+ justify-content:space-between;
+ align-items:flex-end;
+ gap:24px;
+ border:1px solid #dbeafe;
+ border-radius:24px;
+ padding:28px;
+ margin-bottom:18px;
+ background:linear-gradient(135deg,#ffffff 15%,#eef5ff 100%);
+ box-shadow:var(--shadow-soft);
+}
+
+.page-summary h1{
+ margin:0;
+ font-size:clamp(1.9rem,5vw,2.8rem);
+ letter-spacing:-.035em;
+ line-height:1.08;
+}
+
+.page-summary p{
+ color:var(--muted);
+ margin:8px 0 0;
+ line-height:1.55;
+}
+
+.summary-count,
+.progress-percent{
+ min-width:112px;
+ border-radius:18px;
+ padding:16px;
+ text-align:center;
+ background:var(--surface);
+ border:1px solid var(--border);
+ box-shadow:var(--shadow-soft);
+}
+
+.summary-count strong,
+.progress-percent strong{
+ display:block;
+ color:var(--primary);
+ font-size:1.8rem;
+ line-height:1;
+}
+
+.summary-count span,
+.progress-percent span{
+ display:block;
+ margin-top:6px;
+ color:var(--muted);
+ font-size:.75rem;
+ font-weight:750;
+}
+
+.lesson-status-list{
+ display:flex;
+ flex-direction:column;
+ gap:10px;
+}
+
+.status-row{
+ width:100%;
+ border:1px solid var(--border);
+ border-radius:16px;
+ padding:14px 16px;
+ display:grid;
+ grid-template-columns:auto minmax(0,1fr) auto;
+ align-items:center;
+ gap:12px;
+ text-align:left;
+ color:var(--text);
+ background:var(--surface);
+ box-shadow:var(--shadow-soft);
+ cursor:pointer;
+ transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+
+.status-row:hover{
+ transform:translateY(-1px);
+ border-color:#bfdbfe;
+ box-shadow:var(--shadow);
+}
+
+.status-dot{
+ width:38px;
+ height:38px;
+ border-radius:12px;
+ display:grid;
+ place-items:center;
+ font-weight:900;
+}
+
+.status-dot-completed{
+ background:var(--success-soft);
+ color:var(--success);
+}
+
+.status-dot-started{
+ background:var(--warning-soft);
+ color:var(--warning);
+}
+
+.status-dot-none{
+ background:#f2f4f7;
+ color:#667085;
+}
+
+.status-row-copy{
+ min-width:0;
+ display:flex;
+ flex-direction:column;
+ gap:4px;
+}
+
+.status-row-copy strong{
+ font-size:.94rem;
+}
+
+.status-row-copy small,
+.status-row-meta small{
+ color:var(--muted);
+ font-size:.76rem;
+ line-height:1.35;
+}
+
+.status-row-meta{
+ display:flex;
+ align-items:center;
+ gap:12px;
+ color:#98a2b3;
+}
+
+.status-badge{
+ border-radius:999px;
+ padding:6px 9px;
+ font-size:.72rem;
+ font-weight:800;
+ white-space:nowrap;
+}
+
+.status-badge-completed{
+ background:var(--success-soft);
+ color:var(--success);
+}
+
+.status-badge-started{
+ background:var(--warning-soft);
+ color:var(--warning);
+}
+
+.status-badge-none{
+ background:#f2f4f7;
+ color:#667085;
+}
+
+.empty-state{
+ border:1px dashed #cbd5e1;
+ border-radius:20px;
+ padding:48px 24px;
+ text-align:center;
+ background:rgba(255,255,255,.65);
+}
+
+.empty-icon{
+ width:54px;
+ height:54px;
+ margin:0 auto 14px;
+ border-radius:16px;
+ display:grid;
+ place-items:center;
+ background:var(--success-soft);
+ font-size:24px;
+}
+
+.empty-state h2{
+ margin:0 0 8px;
+ font-size:1.2rem;
+}
+
+.empty-state p{
+ max-width:470px;
+ margin:0 auto 20px;
+ color:var(--muted);
+ line-height:1.55;
+}
+
+.progress-overview,
+.progress-detail{
+ border:1px solid var(--border);
+ border-radius:20px;
+ background:var(--surface);
+ box-shadow:var(--shadow-soft);
+}
+
+.progress-overview{
+ padding:20px;
+ margin-bottom:18px;
+}
+
+.progress-track{
+ width:100%;
+ height:10px;
+ overflow:hidden;
+ border-radius:999px;
+ background:#edf2f7;
+}
+
+.progress-fill{
+ width:0;
+ height:100%;
+ border-radius:inherit;
+ background:linear-gradient(90deg,#2563eb,#60a5fa);
+ transition:width .35s ease;
+}
+
+.progress-stats{
+ display:grid;
+ grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:12px;
+ margin-top:18px;
+}
+
+.progress-stat{
+ border:1px solid var(--border);
+ border-radius:15px;
+ padding:14px;
+ display:flex;
+ align-items:center;
+ gap:11px;
+ background:var(--surface-soft);
+}
+
+.stat-icon{
+ width:36px;
+ height:36px;
+ flex:0 0 auto;
+ border-radius:11px;
+ display:grid;
+ place-items:center;
+ font-weight:900;
+}
+
+.stat-completed{background:var(--success-soft);color:var(--success)}
+.stat-started{background:var(--warning-soft);color:var(--warning)}
+.stat-remaining{background:#eef2f6;color:#667085}
+
+.progress-stat strong{
+ display:block;
+ font-size:1.2rem;
+ line-height:1;
+}
+
+.progress-stat small{
+ display:block;
+ margin-top:4px;
+ color:var(--muted);
+ font-size:.73rem;
+}
+
+.progress-detail{
+ padding:20px;
+}
+
+.section-heading-row{
+ display:flex;
+ align-items:flex-end;
+ justify-content:space-between;
+ gap:12px;
+ margin-bottom:15px;
+}
+
+.section-heading-row h2{
+ margin:0;
+ font-size:1.25rem;
+}
+
+.lesson-header-actions{
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:12px;
+ margin-bottom:20px;
+}
+
+.lesson-header-actions .lesson-close{
+ margin:0;
+}
+
+.complete-btn{
+ min-height:42px;
+ border:1px solid #bbf7d0;
+ border-radius:12px;
+ padding:0 14px;
+ display:inline-flex;
+ align-items:center;
+ gap:7px;
+ background:var(--success-soft);
+ color:var(--success);
+ font-weight:800;
+ cursor:pointer;
+ transition:transform .18s ease,background .18s ease,border-color .18s ease;
+}
+
+.complete-btn:hover:not(:disabled){
+ transform:translateY(-1px);
+ border-color:#86efac;
+}
+
+.complete-btn.is-completed{
+ background:var(--success);
+ border-color:var(--success);
+ color:white;
+}
+
+.complete-btn:disabled{
+ opacity:.55;
+ cursor:not-allowed;
+}
+
+@media(max-width:760px){
+ .tracker-shell{padding-top:4px}
+ .page-summary{align-items:flex-start;flex-direction:column;padding:22px}
+ .summary-count,.progress-percent{min-width:96px}
+ .progress-stats{grid-template-columns:1fr}
+ .lesson-header-actions{align-items:stretch;flex-direction:column}
+ .lesson-header-actions .nav-back,
+ .lesson-header-actions .complete-btn{width:100%}
+ .status-row{grid-template-columns:auto minmax(0,1fr)}
+ .status-row-meta,.status-badge{grid-column:2}
+ .status-row-meta{justify-content:space-between}
+ .status-badge{justify-self:start}
+}
+
+@media(max-width:440px){
+ .page-summary{border-radius:20px;padding:20px 16px}
+ .progress-overview,.progress-detail{border-radius:18px}
+ .status-row{padding:13px}
+}
