@@ -958,3 +958,106 @@ select:disabled{
  .progress-overview,.progress-detail{border-radius:18px}
  .status-row{padding:13px}
 }
+
+
+/* Academic term selection and shared context */
+.term-grid{
+ width:min(860px,100%);
+ margin:0 auto;
+ display:grid;
+ grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:16px;
+}
+
+.term-card{
+ border:1px solid var(--border);
+ border-radius:22px;
+ min-height:132px;
+ padding:20px;
+ display:grid;
+ grid-template-columns:auto 1fr auto;
+ align-items:center;
+ gap:14px;
+ text-align:left;
+ color:var(--text);
+ background:var(--surface);
+ box-shadow:var(--shadow-soft);
+ cursor:pointer;
+ transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+
+.term-card:hover{
+ transform:translateY(-2px);
+ border-color:#bfdbfe;
+ box-shadow:var(--shadow);
+}
+
+.term-number{
+ width:52px;
+ height:52px;
+ border-radius:16px;
+ display:grid;
+ place-items:center;
+ background:linear-gradient(145deg,#1d4ed8,#2563eb);
+ color:white;
+ font-size:1.25rem;
+ font-weight:900;
+ box-shadow:0 8px 18px rgba(37,99,235,.2);
+}
+
+.term-card-copy{
+ min-width:0;
+ display:flex;
+ flex-direction:column;
+ gap:5px;
+}
+
+.term-card-copy strong{
+ font-size:1.05rem;
+}
+
+.term-card-copy small{
+ color:var(--muted);
+ font-size:.78rem;
+ line-height:1.4;
+}
+
+.class-topbar{
+ margin-bottom:2px;
+}
+
+.hero-badges,
+.context-chips{
+ display:flex;
+ align-items:center;
+ flex-wrap:wrap;
+ gap:8px;
+}
+
+.term-badge,
+.selected-term-chip{
+ display:inline-flex;
+ align-items:center;
+ gap:6px;
+ border-radius:999px;
+ padding:7px 11px;
+ background:#f5f3ff;
+ color:#6d28d9;
+ font-size:.78rem;
+ font-weight:800;
+}
+
+.status-pill.missing{
+ background:#f2f4f7;
+ color:#667085;
+}
+
+@media(max-width:760px){
+ .term-grid{grid-template-columns:1fr}
+ .term-card{min-height:96px}
+}
+
+@media(max-width:440px){
+ .term-card{padding:16px;border-radius:18px}
+ .term-number{width:44px;height:44px;border-radius:13px}
+}
