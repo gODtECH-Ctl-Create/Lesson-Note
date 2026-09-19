@@ -1,33 +1,42 @@
 // LessonHub lesson progress persistence.
-// Progress is stored per class in localStorage so refreshes do not erase it.
+// Progress is isolated by academic term AND class.
 
 (function () {
-  const storageKey = "lessonhub_lesson_progress_v1";
+  const storageKey = "lessonhub_lesson_progress_v2";
+  const legacyStorageKey = "lessonhub_lesson_progress_v1";
+  const catalogueKey = "lessonhub_lesson_catalogue_v1";
 
-  function read() {
+  function readJson(key, fallback = {}) {
     try {
-      const value = JSON.parse(localStorage.getItem(storageKey) || "{}");
-      return value && typeof value === "object" ? value : {};
+      const value = JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback));
+      return value && typeof value === "object" ? value : fallback;
     } catch (error) {
-      console.warn("Could not read LessonHub progress.", error);
-      return {};
+      console.warn("Could not read LessonHub local data.", error);
+      return fallback;
     }
   }
 
-  function write(value) {
-    localStorage.setItem(storageKey, JSON.stringify(value));
-    window.dispatchEvent(new CustomEvent("lessonhub:progress-changed"));
+  function writeJson(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function currentTerm() {
+    return window.LessonHubTerm?.get() || "first";
+  }
+
+  function currentClass() {
+    return window.LessonHubClass?.get(currentTerm()) || "";
+  }
+
+  function scopeKey(term = currentTerm(), className = currentClass()) {
+    return term + "::" + className;
   }
 
   function lessonKey(week, subject) {
     return [String(week || "").trim(), String(subject || "").trim()].join("::");
   }
 
-  function currentClass() {
-    return window.LessonHubClass?.get() || "";
-  }
-
-  function catalogue() {
+  function staticCatalogue() {
     const items = [];
     const lessons = typeof LESSONS !== "undefined" ? LESSONS : {};
 
@@ -44,74 +53,128 @@
       });
     });
 
-    return items.sort((a, b) => {
-      const weekA = Number((a.week.match(/\d+/) || [999])[0]);
-      const weekB = Number((b.week.match(/\d+/) || [999])[0]);
-      return weekA - weekB || a.subject.localeCompare(b.subject);
+    return sortCatalogue(items);
+  }
+
+  function sortCatalogue(items) {
+    return [...items].sort((a, b) => {
+      const weekA = Number((String(a.week).match(/\d+/) || [999])[0]);
+      const weekB = Number((String(b.week).match(/\d+/) || [999])[0]);
+      return weekA - weekB || String(a.subject).localeCompare(String(b.subject));
     });
   }
 
-  function recordsForClass(className = currentClass()) {
-    return read()[className] || {};
+  function catalogue(term = currentTerm()) {
+    const cache = readJson(catalogueKey, {});
+    if (Array.isArray(cache[term]) && cache[term].length) {
+      return sortCatalogue(cache[term]);
+    }
+
+    // The bundled lesson snapshot belongs to First Term.
+    return term === "first" ? staticCatalogue() : [];
   }
 
-  function recordFor(week, subject, className = currentClass()) {
-    return recordsForClass(className)[lessonKey(week, subject)] || null;
+  function setCatalogue(items, term = currentTerm()) {
+    const cache = readJson(catalogueKey, {});
+    cache[term] = sortCatalogue((items || []).map((item) => ({
+      week: item.week,
+      subject: item.subject,
+      topic: item.topic || "",
+      dates: item.dates || "",
+      key: lessonKey(item.week, item.subject)
+    })));
+    writeJson(catalogueKey, cache);
   }
 
-  function update(week, subject, patch, className = currentClass()) {
-    if (!className || !week || !subject) return null;
+  function readProgress() {
+    const current = readJson(storageKey, {});
+    if (Object.keys(current).length) return current;
 
-    const all = read();
-    const classRecords = all[className] || {};
-    const key = lessonKey(week, subject);
-    const previous = classRecords[key] || {};
+    // One-time compatibility: old data represented First Term progress by class only.
+    const legacy = readJson(legacyStorageKey, {});
+    const migrated = {};
+    Object.entries(legacy).forEach(([className, records]) => {
+      if (records && typeof records === "object") {
+        migrated["first::" + className] = records;
+      }
+    });
 
-    classRecords[key] = {
+    if (Object.keys(migrated).length) writeJson(storageKey, migrated);
+    return migrated;
+  }
+
+  function writeProgress(value) {
+    writeJson(storageKey, value);
+    window.dispatchEvent(new CustomEvent("lessonhub:progress-changed"));
+  }
+
+  function recordsForClass(className = currentClass(), term = currentTerm()) {
+    if (!className || !term) return {};
+    return readProgress()[scopeKey(term, className)] || {};
+  }
+
+  function recordFor(week, subject, className = currentClass(), term = currentTerm()) {
+    return recordsForClass(className, term)[lessonKey(week, subject)] || null;
+  }
+
+  function update(week, subject, patch, className = currentClass(), term = currentTerm()) {
+    if (!term || !className || !week || !subject) return null;
+
+    const all = readProgress();
+    const key = scopeKey(term, className);
+    const records = all[key] || {};
+    const lessonId = lessonKey(week, subject);
+    const previous = records[lessonId] || {};
+
+    records[lessonId] = {
       ...previous,
       week,
       subject,
+      term,
+      className,
       ...patch
     };
 
-    all[className] = classRecords;
-    write(all);
-    return classRecords[key];
+    all[key] = records;
+    writeProgress(all);
+    return records[lessonId];
   }
 
-  function markStarted(week, subject, className = currentClass()) {
-    const existing = recordFor(week, subject, className);
+  function markStarted(week, subject, className = currentClass(), term = currentTerm()) {
+    const existing = recordFor(week, subject, className, term);
     if (existing?.status === "completed") return existing;
 
     return update(week, subject, {
       status: "started",
-      openedAt: new Date().toISOString()
-    }, className);
+      openedAt: existing?.openedAt || new Date().toISOString()
+    }, className, term);
   }
 
-  function setCompleted(week, subject, completed, className = currentClass()) {
+  function setCompleted(week, subject, completed, className = currentClass(), term = currentTerm()) {
+    const existing = recordFor(week, subject, className, term);
+
     if (completed) {
       return update(week, subject, {
         status: "completed",
         completedAt: new Date().toISOString(),
-        openedAt: recordFor(week, subject, className)?.openedAt || new Date().toISOString()
-      }, className);
+        openedAt: existing?.openedAt || new Date().toISOString()
+      }, className, term);
     }
 
     return update(week, subject, {
       status: "started",
       completedAt: null,
-      openedAt: recordFor(week, subject, className)?.openedAt || new Date().toISOString()
-    }, className);
+      openedAt: existing?.openedAt || new Date().toISOString()
+    }, className, term);
   }
 
-  function isCompleted(week, subject, className = currentClass()) {
-    return recordFor(week, subject, className)?.status === "completed";
+  function isCompleted(week, subject, className = currentClass(), term = currentTerm()) {
+    return recordFor(week, subject, className, term)?.status === "completed";
   }
 
-  function summary(className = currentClass()) {
-    const lessons = catalogue();
-    const records = recordsForClass(className);
+  function summary(className = currentClass(), term = currentTerm()) {
+    const lessons = catalogue(term);
+    const records = recordsForClass(className, term);
     let completed = 0;
     let started = 0;
 
@@ -135,6 +198,7 @@
 
   window.LessonHubProgress = {
     catalogue,
+    setCatalogue,
     lessonKey,
     recordsForClass,
     recordFor,
