@@ -1,11 +1,26 @@
-const LIVE_API_URL = String(window.LESSON_API_URL || "").trim();
+let LIVE_API_URL = "";
+
+function isValidLessonApiUrl(value) {
+  return /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?.*)?$/i.test(String(value || "").trim());
+}
 
 window.lessonApi = {
-  enabled: /^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:\?.*)?$/i.test(LIVE_API_URL),
+  currentTerm: "",
+
+  configureForTerm(termKey = window.LessonHubTerm?.get?.() || "first") {
+    const termConfig = window.LESSON_TERM_CONFIG?.[termKey] || {};
+    this.currentTerm = termKey;
+    LIVE_API_URL = String(termConfig.apiUrl || "").trim();
+    return this.enabled;
+  },
+
+  get enabled() {
+    return isValidLessonApiUrl(LIVE_API_URL);
+  },
 
   call(action, params = {}) {
     if (!this.enabled) {
-      return Promise.reject(new Error("Live Google Doc API is not configured."));
+      return Promise.reject(new Error("Live Google Doc API is not configured for this term."));
     }
 
     return new Promise((resolve, reject) => {
@@ -49,3 +64,6 @@ window.lessonApi = {
     });
   }
 };
+
+// Configure the persisted term immediately when possible.
+window.lessonApi.configureForTerm(window.LessonHubTerm?.get?.() || "first");
