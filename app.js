@@ -10,6 +10,10 @@ const sourceStatus = document.getElementById("sourceStatus");
 const sourceUpdated = document.getElementById("sourceUpdated");
 const refreshSourceBtn = document.getElementById("refreshSourceBtn");
 const toggleCompleteBtn = document.getElementById("toggleCompleteBtn");
+const downloadOfflineBtn = document.getElementById("downloadOfflineBtn");
+const offlineStatusText = document.getElementById("offlineStatusText");
+const offlineProgress = document.getElementById("offlineProgress");
+const offlineProgressText = document.getElementById("offlineProgressText");
 
 let sourceMode = "static";
 let lessonIndex = {};
@@ -183,6 +187,80 @@ function setSourceStatus(mode, message, updatedAt = "") {
   }
 }
 
+async function refreshOfflinePanel(term = currentTerm()) {
+  if (!offlineStatusText || !downloadOfflineBtn) return;
+
+  if (!window.LessonHubOffline?.supported) {
+    offlineStatusText.textContent = "Offline lesson storage is not supported by this browser.";
+    downloadOfflineBtn.disabled = true;
+    return;
+  }
+
+  try {
+    const [count, sync, manifest] = await Promise.all([
+      window.LessonHubOffline.countLessons(term),
+      window.LessonHubOffline.getSyncState(term),
+      window.LessonHubOffline.getManifest(term)
+    ]);
+
+    const total = sync?.total || indexToCatalogue(lessonIndex).length || 0;
+    const hasUpdate = Boolean(
+      sync?.modifiedAt &&
+      manifest?.modifiedAt &&
+      sync.modifiedAt !== manifest.modifiedAt
+    );
+
+    if (count > 0) {
+      const completeText = total ? count + " of " + total + " lessons saved" : count + " lessons saved";
+      const lastSync = sync?.savedAt ? new Date(sync.savedAt).toLocaleString() : "";
+
+      offlineStatusText.textContent = hasUpdate
+        ? completeText + " · Update available"
+        : completeText + (lastSync ? " · Last synced " + lastSync : " · Available offline");
+
+      downloadOfflineBtn.textContent = hasUpdate ? "Update offline copy" : "Update offline copy";
+    } else if (term === "first") {
+      offlineStatusText.textContent = "The bundled First Term snapshot is available offline after this app is cached.";
+      downloadOfflineBtn.textContent = "Save full live copy";
+    } else {
+      offlineStatusText.textContent = "This term has not been downloaded to this device yet.";
+      downloadOfflineBtn.textContent = "Download for offline";
+    }
+  } catch (error) {
+    console.warn("Could not read offline status.", error);
+    offlineStatusText.textContent = "Offline status is unavailable.";
+  }
+}
+
+function setOfflineProgress(done, total, message = "") {
+  const percent = total ? Math.round((done / total) * 100) : 0;
+  if (offlineProgress) offlineProgress.style.width = percent + "%";
+  if (offlineProgressText) {
+    offlineProgressText.textContent = message || (total ? done + " of " + total + " lessons saved" : "");
+  }
+}
+
+async function useCachedManifest(term) {
+  if (!window.LessonHubOffline?.supported) return false;
+
+  try {
+    const cached = await window.LessonHubOffline.getManifest(term);
+    if (!cached?.index || !Object.keys(cached.index).length) return false;
+
+    lessonIndex = cached.index;
+    liveManifest = cached.manifest || null;
+    populateWeeks();
+    window.LessonHubProgress?.setCatalogue(indexToCatalogue(lessonIndex), term);
+    setSourceStatus("cached", currentTermLabel() + " · Saved on this device", cached.modifiedAt || "");
+    refreshSourceBtn.disabled = false;
+    await refreshOfflinePanel(term);
+    return true;
+  } catch (error) {
+    console.warn("Could not load the saved lesson manifest.", error);
+    return false;
+  }
+}
+
 async function loadSource(force = false) {
   const term = currentTerm();
 
@@ -193,7 +271,9 @@ async function loadSource(force = false) {
   loadedTerm = term;
   sourcePromise = (async () => {
     refreshSourceBtn.disabled = true;
-    sourceStatus.textContent = "Loading " + currentTermLabel() + " lesson source…";
+    sourceStatus.textContent = force
+      ? "Checking " + currentTermLabel() + " for updates…"
+      : "Loading " + currentTermLabel() + " lesson source…";
     sourceStatus.className = "status-pill";
     sourceUpdated.textContent = "";
     clearSelect(weekSelect, "Loading weeks…", true);
@@ -202,50 +282,226 @@ async function loadSource(force = false) {
     closeLesson({ updateRoute: false });
 
     const termConfig = window.LessonHubTerm?.config(term) || {};
+    const cachedManifest = window.LessonHubOffline?.supported
+      ? await window.LessonHubOffline.getManifest(term).catch(() => null)
+      : null;
+
+    if (!force && cachedManifest?.index && Object.keys(cachedManifest.index).length) {
+      lessonIndex = cachedManifest.index;
+      liveManifest = cachedManifest.manifest || null;
+      populateWeeks();
+      window.LessonHubProgress?.setCatalogue(indexToCatalogue(lessonIndex), term);
+      setSourceStatus("cached", currentTermLabel() + " · Saved on this device", cachedManifest.modifiedAt || "");
+      refreshSourceBtn.disabled = false;
+      await refreshOfflinePanel(term);
+      return lessonIndex;
+    }
+
     window.lessonApi?.configureForTerm?.(term);
 
-    if (window.lessonApi?.enabled) {
+    if (navigator.onLine && window.lessonApi?.enabled) {
       try {
-        liveManifest = await window.lessonApi.call("manifest");
-        lessonIndex = buildLiveIndex(liveManifest);
+        const freshManifest = await window.lessonApi.call("manifest");
+        const freshIndex = buildLiveIndex(freshManifest);
 
-        if (!Object.keys(lessonIndex).length) {
+        if (!Object.keys(freshIndex).length) {
           throw new Error("The live Google Doc did not return any WEEK headings.");
         }
 
+        const unchanged = Boolean(
+          force &&
+          cachedManifest?.modifiedAt &&
+          freshManifest.modifiedAt &&
+          cachedManifest.modifiedAt === freshManifest.modifiedAt
+        );
+
+        liveManifest = freshManifest;
+        lessonIndex = freshIndex;
         populateWeeks();
         window.LessonHubProgress?.setCatalogue(indexToCatalogue(lessonIndex), term);
-        setSourceStatus("live", currentTermLabel() + " · Live Google Doc", liveManifest.modifiedAt);
+        await window.LessonHubOffline?.saveManifest(term, freshManifest, lessonIndex);
+
+        setSourceStatus(
+          "live",
+          unchanged
+            ? currentTermLabel() + " · Everything is up to date"
+            : currentTermLabel() + " · Live Google Doc",
+          freshManifest.modifiedAt
+        );
+
         refreshSourceBtn.disabled = false;
+        await refreshOfflinePanel(term);
         return lessonIndex;
       } catch (error) {
         console.warn("Live source unavailable for " + currentTermLabel() + ".", error);
       }
     }
 
+    if (cachedManifest?.index && Object.keys(cachedManifest.index).length) {
+      lessonIndex = cachedManifest.index;
+      liveManifest = cachedManifest.manifest || null;
+      populateWeeks();
+      window.LessonHubProgress?.setCatalogue(indexToCatalogue(lessonIndex), term);
+      setSourceStatus(
+        "cached",
+        currentTermLabel() + (navigator.onLine ? " · Using saved copy" : " · Offline · using saved copy"),
+        cachedManifest.modifiedAt || ""
+      );
+      refreshSourceBtn.disabled = false;
+      await refreshOfflinePanel(term);
+      return lessonIndex;
+    }
+
     if (termConfig.staticFallback && term === "first") {
       lessonIndex = buildStaticIndex();
       populateWeeks();
       window.LessonHubProgress?.setCatalogue(indexToCatalogue(lessonIndex), term);
+      await window.LessonHubOffline?.saveManifest(term, null, lessonIndex).catch(() => {});
 
-      const reason = window.lessonApi?.enabled
-        ? currentTermLabel() + " · Live source unavailable · using saved snapshot"
-        : currentTermLabel() + " · Saved snapshot";
+      setSourceStatus(
+        "static",
+        currentTermLabel() + (navigator.onLine ? " · Saved snapshot" : " · Offline · saved snapshot")
+      );
 
-      setSourceStatus("static", reason);
       refreshSourceBtn.disabled = false;
+      await refreshOfflinePanel(term);
       return lessonIndex;
     }
 
     lessonIndex = {};
     populateWeeks();
-    setSourceStatus("missing", currentTermLabel() + " · Lesson document not connected yet");
-    sourceUpdated.textContent = "Add this term's Google Apps Script /exec URL in config.js.";
+    setSourceStatus(
+      "missing",
+      navigator.onLine
+        ? currentTermLabel() + " · Lesson source unavailable"
+        : currentTermLabel() + " · Offline · no saved lessons"
+    );
+    sourceUpdated.textContent = navigator.onLine
+      ? "Try Check for updates again."
+      : "Connect once to download this term for offline use.";
     refreshSourceBtn.disabled = false;
+    await refreshOfflinePanel(term);
     return lessonIndex;
   })();
 
   return sourcePromise;
+}
+
+async function downloadCurrentTerm() {
+  const term = currentTerm();
+
+  if (!window.LessonHubOffline?.supported) {
+    offlineStatusText.textContent = "Offline storage is not supported on this browser.";
+    return;
+  }
+
+  if (!navigator.onLine && term !== "first") {
+    offlineStatusText.textContent = "Connect to the internet once to download this term.";
+    return;
+  }
+
+  downloadOfflineBtn.disabled = true;
+  refreshSourceBtn.disabled = true;
+  setOfflineProgress(0, 0, "Preparing lesson download…");
+
+  try {
+    if (navigator.onLine) {
+      await loadSource(true);
+    } else {
+      await loadSource(false);
+    }
+
+    const items = indexToCatalogue(lessonIndex);
+    if (!items.length) {
+      throw new Error("No lessons are available to download.");
+    }
+
+    const existingSync = await window.LessonHubOffline.getSyncState(term).catch(() => null);
+    const existingCount = await window.LessonHubOffline.countLessons(term).catch(() => 0);
+    const currentVersion = liveManifest?.modifiedAt || (sourceMode === "static" ? "static" : "");
+
+    if (
+      existingCount >= items.length &&
+      existingSync?.modifiedAt &&
+      currentVersion &&
+      existingSync.modifiedAt === currentVersion
+    ) {
+      setOfflineProgress(items.length, items.length, "Everything is already up to date.");
+      offlineStatusText.textContent = "All available lessons are already saved on this device.";
+      return;
+    }
+
+    let completed = 0;
+    let failed = 0;
+    let cursor = 0;
+
+    async function worker() {
+      while (cursor < items.length) {
+        const item = items[cursor++];
+        try {
+          if (sourceMode === "static" && term === "first") {
+            const staticLesson = LESSONS?.[item.week]?.[item.subject];
+            if (!staticLesson) throw new Error("Static lesson not found.");
+            await window.LessonHubOffline.saveLesson(term, {
+              ...staticLesson,
+              week: item.week,
+              subject: item.subject
+            }, "static");
+          } else {
+            window.lessonApi?.configureForTerm?.(term);
+            if (!window.lessonApi?.enabled || !navigator.onLine) {
+              throw new Error("Internet connection is required for this lesson.");
+            }
+            const lesson = await window.lessonApi.call("lesson", {
+              subject: item.subject,
+              week: item.week
+            });
+            await window.LessonHubOffline.saveLesson(term, lesson, "live");
+          }
+        } catch (error) {
+          failed += 1;
+          console.warn("Could not save lesson for offline use.", item, error);
+        } finally {
+          completed += 1;
+          setOfflineProgress(
+            completed,
+            items.length,
+            completed + " of " + items.length + " processed" + (failed ? " · " + failed + " failed" : "")
+          );
+        }
+      }
+    }
+
+    const workers = Array.from(
+      { length: Math.min(3, items.length) },
+      () => worker()
+    );
+
+    await Promise.all(workers);
+
+    const saved = await window.LessonHubOffline.countLessons(term);
+    await window.LessonHubOffline.saveSyncState(term, {
+      total: items.length,
+      saved,
+      modifiedAt: currentVersion
+    });
+
+    if (failed) {
+      offlineStatusText.textContent =
+        saved + " of " + items.length + " lessons saved. Reconnect and try again for the remaining lessons.";
+    } else {
+      offlineStatusText.textContent =
+        "Ready offline · " + saved + " lessons saved for " + currentTermLabel() + ".";
+      setOfflineProgress(items.length, items.length, "Offline download complete.");
+    }
+  } catch (error) {
+    console.warn("Offline download failed.", error);
+    offlineStatusText.textContent = error.message || "Could not download lessons for offline use.";
+  } finally {
+    downloadOfflineBtn.disabled = false;
+    refreshSourceBtn.disabled = false;
+    await refreshOfflinePanel(term);
+  }
 }
 
 function escapeHtml(value) {
@@ -469,32 +725,46 @@ async function viewSelectedLesson() {
   syncLessonRoute(week, subject);
   lessonSection.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  if (sourceMode === "live" && window.lessonApi?.enabled) {
+  const cached = await window.LessonHubOffline?.getLesson(currentTerm(), week, subject).catch(() => null);
+
+  if (cached?.lesson) {
+    if (cached.kind === "static") {
+      renderStaticLesson(cached.lesson, week, subject);
+    } else {
+      renderLiveLesson(cached.lesson);
+    }
+    return;
+  }
+
+  if (sourceMode === "live" && navigator.onLine && window.lessonApi?.enabled) {
     try {
       const lesson = await window.lessonApi.call("lesson", { subject, week });
+      await window.LessonHubOffline?.saveLesson(currentTerm(), lesson, "live").catch(() => {});
       renderLiveLesson(lesson);
+      await refreshOfflinePanel();
       return;
     } catch (error) {
-      lessonContainer.innerHTML =
-        '<p class="error">Could not load the live lesson. Refresh the source and try again.</p>';
+      console.warn("Could not load live lesson.", error);
+    }
+  }
+
+  if (currentTerm() === "first") {
+    const lesson = LESSONS?.[week]?.[subject];
+    if (lesson) {
+      await window.LessonHubOffline?.saveLesson(currentTerm(), {
+        ...lesson,
+        week,
+        subject
+      }, "static").catch(() => {});
+      renderStaticLesson(lesson, week, subject);
+      await refreshOfflinePanel();
       return;
     }
   }
 
-  if (currentTerm() !== "first") {
-    lessonContainer.innerHTML =
-      '<p class="error">This term\'s lesson document is not connected yet.</p>';
-    return;
-  }
-
-  const lesson = LESSONS?.[week]?.[subject];
-  if (!lesson) {
-    lessonContainer.innerHTML =
-      '<p class="error">No lesson was found for this week and subject.</p>';
-    return;
-  }
-
-  renderStaticLesson(lesson, week, subject);
+  lessonContainer.innerHTML = navigator.onLine
+    ? '<p class="error">This lesson is not saved yet. Use “Download for offline” or try Check for updates.</p>'
+    : '<p class="error">This lesson is not available offline on this device yet. Connect once and download this term.</p>';
 }
 
 weekSelect.addEventListener("change", populateSubjects);
@@ -539,7 +809,20 @@ toggleCompleteBtn?.addEventListener("click", () => {
   updateCompletionButton();
 });
 
-refreshSourceBtn.addEventListener("click", () => loadSource(true));
+refreshSourceBtn.addEventListener("click", async () => {
+  if (!navigator.onLine) {
+    setSourceStatus("cached", currentTermLabel() + " · Offline · using saved lessons");
+    sourceUpdated.textContent = "Connect to the internet to check for new updates.";
+    await refreshOfflinePanel();
+    return;
+  }
+
+  loadedTerm = "";
+  sourcePromise = null;
+  await loadSource(true);
+});
+
+downloadOfflineBtn?.addEventListener("click", downloadCurrentTerm);
 
 async function restoreFromRoute(week, subject) {
   if (!week || !subject) return;
@@ -569,8 +852,14 @@ window.addEventListener("lessonhub:term-selected", () => {
   loadedTerm = "";
   sourcePromise = null;
   lessonIndex = {};
+  liveManifest = null;
   closeLesson({ updateRoute: false });
   window.lessonApi?.configureForTerm?.(currentTerm());
+  refreshOfflinePanel();
+});
+
+window.addEventListener("lessonhub:network-changed", () => {
+  refreshOfflinePanel();
 });
 
 window.addEventListener("lessonhub:progress-changed", updateCompletionButton);
