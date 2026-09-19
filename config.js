@@ -9,12 +9,12 @@ window.LESSON_TERM_CONFIG = {
   },
   second: {
     label: "Second Term",
-    apiUrl: "",
+    apiUrl: "https://script.google.com/macros/s/AKfycbyRJjkphjFUzEFuvfpr2TcCs3-Ite-663JxqHy7qFlq1fOIG2kN5YBiqjZHS6MiLUxD/exec",
     staticFallback: false
   },
   third: {
     label: "Third Term",
-    apiUrl: "",
+    apiUrl: "https://script.google.com/macros/s/AKfycbz5q1jBvfhfzIwUAxWkdPYxQgsp6AiwM5i3RvexbXQFL3Gxd3fNDlvRb1rT4JP9j10/exec",
     staticFallback: false
   }
 };
