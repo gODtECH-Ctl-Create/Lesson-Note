@@ -9,10 +9,39 @@ const closeLessonBtn = document.getElementById("closeLessonBtn");
 const sourceStatus = document.getElementById("sourceStatus");
 const sourceUpdated = document.getElementById("sourceUpdated");
 const refreshSourceBtn = document.getElementById("refreshSourceBtn");
+const toggleCompleteBtn = document.getElementById("toggleCompleteBtn");
 
 let sourceMode = "static";
 let lessonIndex = {};
 let liveManifest = null;
+let activeLesson = null;
+
+
+function updateCompletionButton() {
+  if (!toggleCompleteBtn) return;
+
+  if (!activeLesson?.week || !activeLesson?.subject) {
+    toggleCompleteBtn.disabled = true;
+    toggleCompleteBtn.classList.remove("is-completed");
+    toggleCompleteBtn.querySelector("span:last-child").textContent = "Mark as completed";
+    return;
+  }
+
+  const completed = window.LessonHubProgress?.isCompleted(activeLesson.week, activeLesson.subject) || false;
+  toggleCompleteBtn.disabled = false;
+  toggleCompleteBtn.classList.toggle("is-completed", completed);
+  toggleCompleteBtn.querySelector("span:last-child").textContent = completed ? "Completed" : "Mark as completed";
+}
+
+function syncLessonRoute(week = "", subject = "") {
+  window.LessonHubRouter?.replaceLessonRoute?.(week, subject);
+}
+
+function setActiveLesson(week, subject) {
+  activeLesson = { week, subject };
+  window.LessonHubProgress?.markStarted(week, subject);
+  updateCompletionButton();
+}
 
 function weekNumber(label) {
   const match = String(label || "").match(/\d+/);
@@ -321,6 +350,7 @@ function renderStaticLesson(lesson, week, subject) {
   article.appendChild(body);
 
   lessonContainer.appendChild(article);
+  setActiveLesson(week, subject);
   const activeClass = window.LessonHubClass?.get() || "Class";
   lessonMeta.textContent = [activeClass, "2026", week, lesson.dates].filter(Boolean).join(" · ");
   lessonTitle.textContent = subject;
@@ -345,6 +375,7 @@ function renderLiveLesson(lesson) {
   article.appendChild(body);
 
   lessonContainer.appendChild(article);
+  setActiveLesson(lesson.week, lesson.subject);
   const activeClass = window.LessonHubClass?.get() || "Class";
   lessonMeta.textContent = [activeClass, "2026", lesson.week, lesson.dates].filter(Boolean).join(" · ");
   lessonTitle.textContent = lesson.subject;
@@ -361,6 +392,9 @@ async function viewSelectedLesson() {
   const activeClass = window.LessonHubClass?.get() || "Class";
   lessonMeta.textContent = [activeClass, "2026", week].join(" · ");
   lessonContainer.innerHTML = '<p class="placeholder">Loading lesson…</p>';
+  activeLesson = { week, subject };
+  updateCompletionButton();
+  syncLessonRoute(week, subject);
   lessonSection.scrollIntoView({ behavior: "smooth", block: "start" });
 
   if (sourceMode === "live" && window.lessonApi?.enabled) {
@@ -393,11 +427,52 @@ subjectSelect.addEventListener("change", () => {
 
 viewLessonBtn.addEventListener("click", viewSelectedLesson);
 
-closeLessonBtn.addEventListener("click", () => {
+function closeLesson(options = {}) {
   lessonSection.classList.add("hidden");
   lessonContainer.innerHTML = '<p class="placeholder">Choose a lesson to begin.</p>';
+  activeLesson = null;
+  updateCompletionButton();
+
+  if (options.updateRoute !== false) {
+    syncLessonRoute();
+  }
+}
+
+closeLessonBtn.addEventListener("click", () => closeLesson());
+
+toggleCompleteBtn?.addEventListener("click", () => {
+  if (!activeLesson?.week || !activeLesson?.subject || !window.LessonHubProgress) return;
+
+  const completed = window.LessonHubProgress.isCompleted(activeLesson.week, activeLesson.subject);
+  window.LessonHubProgress.setCompleted(activeLesson.week, activeLesson.subject, !completed);
+  updateCompletionButton();
 });
 
 refreshSourceBtn.addEventListener("click", loadSource);
 
-loadSource();
+const sourceReady = loadSource();
+
+async function restoreFromRoute(week, subject) {
+  if (!week || !subject) return;
+  await sourceReady;
+
+  const weekExists = [...weekSelect.options].some((option) => option.value === week);
+  if (!weekExists) return;
+
+  weekSelect.value = week;
+  populateSubjects();
+
+  const subjectExists = [...subjectSelect.options].some((option) => option.value === subject);
+  if (!subjectExists) return;
+
+  subjectSelect.value = subject;
+  viewLessonBtn.disabled = false;
+  await viewSelectedLesson();
+}
+
+window.LessonHubLessons = {
+  restoreFromRoute,
+  close: closeLesson
+};
+
+window.addEventListener("lessonhub:progress-changed", updateCompletionButton);
