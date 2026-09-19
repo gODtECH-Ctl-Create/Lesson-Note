@@ -14,14 +14,36 @@
     <p>Smart lesson management for teachers</p>
   </section>
 
-  <section id="classScreen" class="screen app-screen class-screen">
+  <section id="termScreen" class="screen app-screen term-screen">
     <div class="page-shell class-shell">
       <div class="brand-lockup brand-centered">
         <span class="brand-mark">📘</span>
         <span class="brand-name">LessonHub</span>
       </div>
       <div class="class-intro">
-        <span class="eyebrow">Teacher workspace</span>
+        <span class="eyebrow">Academic year</span>
+        <h1>Choose your term</h1>
+        <p class="intro">Select the academic term you want to work with.</p>
+      </div>
+      <div id="termSelector" class="term-grid"></div>
+    </div>
+  </section>
+
+  <section id="classScreen" class="screen app-screen class-screen hidden">
+    <div class="page-shell class-shell">
+      <header class="topbar class-topbar">
+        <button id="classBackBtn" class="nav-back" type="button" aria-label="Back to term selection">
+          <span aria-hidden="true">←</span>
+          <span>Terms</span>
+        </button>
+        <div class="brand-lockup">
+          <span class="brand-mark">📘</span>
+          <span class="brand-name">LessonHub</span>
+        </div>
+        <span class="topbar-spacer" aria-hidden="true"></span>
+      </header>
+      <div class="class-intro">
+        <span id="classTermEyebrow" class="eyebrow">Academic term</span>
         <h1>Choose your class</h1>
         <p class="intro">Select the class you are teaching to open its dashboard.</p>
       </div>
@@ -44,7 +66,10 @@
       </header>
 
       <section class="dashboard-hero">
-        <div class="class-badge">Current class</div>
+        <div class="hero-badges">
+          <div class="class-badge">Current class</div>
+          <div id="dashboardTermBadge" class="term-badge"></div>
+        </div>
         <h1 id="dashboardClassName"></h1>
         <p>Everything you need for this class in one place.</p>
       </section>
@@ -96,11 +121,14 @@
 
       <section class="workspace-summary">
         <div>
-          <span class="eyebrow">Lesson notes</span>
+          <span id="workspaceTermEyebrow" class="eyebrow">Lesson notes</span>
           <h1>Plan your lesson</h1>
           <p>Choose an academic week and subject to open the lesson note.</p>
         </div>
-        <div class="selected-class-chip">Class <strong id="selectedClassName"></strong></div>
+        <div class="context-chips">
+          <div id="workspaceTermChip" class="selected-term-chip"></div>
+          <div class="selected-class-chip">Class <strong id="selectedClassName"></strong></div>
+        </div>
       </section>
 
       <div class="source-bar">
@@ -162,9 +190,9 @@
 
       <section class="page-summary">
         <div>
-          <span class="eyebrow">Completed lessons</span>
+          <span id="completedTermEyebrow" class="eyebrow">Completed lessons</span>
           <h1>Finished lessons</h1>
-          <p>Lessons marked complete for <strong id="completedClassName"></strong>.</p>
+          <p>Lessons marked complete for <strong id="completedClassName"></strong> · <span id="completedTermName"></span>.</p>
         </div>
         <div class="summary-count">
           <strong id="completedCount">0</strong>
@@ -192,9 +220,9 @@
 
       <section class="page-summary progress-summary">
         <div>
-          <span class="eyebrow">Class progress</span>
+          <span id="progressTermEyebrow" class="eyebrow">Class progress</span>
           <h1 id="progressClassName">Progress</h1>
-          <p>Track lesson coverage across the available weeks and subjects.</p>
+          <p>Track lesson coverage for <span id="progressTermName"></span>.</p>
         </div>
         <div class="progress-percent">
           <strong id="progressPercent">0%</strong>
