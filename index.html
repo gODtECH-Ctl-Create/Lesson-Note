@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <title>LessonHub</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/lessonhub.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -26,6 +30,10 @@
         <p class="intro">Select the academic term you want to work with.</p>
       </div>
       <div id="termSelector" class="term-grid"></div>
+      <div class="term-footer">
+        <span id="connectionStatus" class="connection-pill">Online</span>
+        <button id="installAppBtn" class="install-btn" type="button" hidden>Install LessonHub</button>
+      </div>
     </div>
   </section>
 
@@ -136,8 +144,23 @@
           <span id="sourceStatus" class="status-pill">Loading lesson source…</span>
           <small id="sourceUpdated"></small>
         </div>
-        <button id="refreshSourceBtn" class="icon-btn" type="button">Refresh</button>
+        <button id="refreshSourceBtn" class="icon-btn" type="button">Check for updates</button>
       </div>
+
+      <section class="offline-card" aria-label="Offline lesson access">
+        <div class="offline-card-main">
+          <span class="offline-card-icon" aria-hidden="true">↓</span>
+          <div class="offline-card-copy">
+            <strong>Offline access</strong>
+            <small id="offlineStatusText">Checking saved lessons on this device…</small>
+          </div>
+        </div>
+        <button id="downloadOfflineBtn" class="offline-download-btn" type="button">Download for offline</button>
+        <div class="offline-progress-track" aria-hidden="true">
+          <div id="offlineProgress" class="offline-progress-fill"></div>
+        </div>
+        <small id="offlineProgressText" class="offline-progress-text"></small>
+      </section>
 
       <section class="selector-card">
         <div class="field">
@@ -269,10 +292,12 @@
 <script src="format-ranges-3.js"></script>
 <script src="format-ranges-4.js"></script>
 <script src="class-selection.js"></script>
+<script src="offline-store.js"></script>
 <script src="lesson-progress.js"></script>
 <script src="class-dashboard.js"></script>
 <script src="class-ui.js"></script>
 <script src="live-api.js"></script>
+<script src="pwa.js"></script>
 <script src="splash.js"></script>
 <script src="app.js"></script>
 </body>
