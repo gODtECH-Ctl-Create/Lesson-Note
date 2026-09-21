@@ -92,6 +92,15 @@
           <span class="action-arrow" aria-hidden="true">→</span>
         </button>
 
+        <button id="openCurriculumBtn" class="dashboard-action" type="button">
+          <span class="action-icon">🗂️</span>
+          <span class="action-copy">
+            <strong>Main Curriculum</strong>
+            <small>See every subject topic from Week 1 onward</small>
+          </span>
+          <span class="action-arrow" aria-hidden="true">→</span>
+        </button>
+
         <button id="openCompletedBtn" class="dashboard-action" type="button">
           <span class="action-icon">✅</span>
           <span class="action-copy">
@@ -197,6 +206,42 @@
     </div>
   </section>
 
+  <section id="curriculumScreen" class="screen app-screen curriculum-screen hidden">
+    <div class="page-shell curriculum-shell">
+      <header class="topbar">
+        <button id="curriculumBackBtn" class="nav-back" type="button" aria-label="Back to class dashboard">
+          <span aria-hidden="true">←</span>
+          <span>Dashboard</span>
+        </button>
+        <div class="brand-lockup">
+          <span class="brand-mark">📘</span>
+          <span class="brand-name">LessonHub</span>
+        </div>
+        <span class="topbar-spacer" aria-hidden="true"></span>
+      </header>
+
+      <section class="page-summary curriculum-summary">
+        <div>
+          <span id="curriculumTermEyebrow" class="eyebrow">Main curriculum</span>
+          <h1 id="curriculumClassName">Class curriculum</h1>
+          <p>Subject topics and weekly coverage for <span id="curriculumTermName"></span>.</p>
+        </div>
+      </section>
+
+      <div class="source-bar curriculum-source-bar">
+        <div class="source-copy">
+          <span id="curriculumStatus" class="status-pill">Loading curriculum…</span>
+          <small id="curriculumUpdated"></small>
+        </div>
+        <button id="refreshCurriculumBtn" class="icon-btn" type="button">Check for updates</button>
+      </div>
+
+      <section id="curriculumContainer" class="curriculum-content">
+        <p class="placeholder">Loading curriculum…</p>
+      </section>
+    </div>
+  </section>
+
   <section id="completedScreen" class="screen app-screen tracker-screen hidden">
     <div class="page-shell tracker-shell">
       <header class="topbar">
@@ -297,6 +342,7 @@
 <script src="class-dashboard.js"></script>
 <script src="class-ui.js"></script>
 <script src="live-api.js"></script>
+<script src="curriculum.js"></script>
 <script src="pwa.js"></script>
 <script src="splash.js"></script>
 <script src="app.js"></script>
