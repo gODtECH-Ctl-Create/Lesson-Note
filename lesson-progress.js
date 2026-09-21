@@ -1,10 +1,10 @@
 // LessonHub lesson progress persistence.
-// Progress is isolated by academic term AND class.
+// Progress and catalogues are isolated by academic term AND class.
 
 (function () {
   const storageKey = "lessonhub_lesson_progress_v2";
   const legacyStorageKey = "lessonhub_lesson_progress_v1";
-  const catalogueKey = "lessonhub_lesson_catalogue_v1";
+  const catalogueKey = "lessonhub_lesson_catalogue_v2";
 
   function readJson(key, fallback = {}) {
     try {
@@ -24,11 +24,11 @@
     return window.LessonHubTerm?.get() || "first";
   }
 
-  function currentClass() {
-    return window.LessonHubClass?.get(currentTerm()) || "";
+  function currentClass(term = currentTerm()) {
+    return window.LessonHubClass?.get(term) || "";
   }
 
-  function scopeKey(term = currentTerm(), className = currentClass()) {
+  function scopeKey(term = currentTerm(), className = currentClass(term)) {
     return term + "::" + className;
   }
 
@@ -64,25 +64,36 @@
     });
   }
 
-  function catalogue(term = currentTerm()) {
+  function catalogue(term = currentTerm(), className = currentClass(term)) {
+    if (!term || !className) return [];
+
     const cache = readJson(catalogueKey, {});
-    if (Array.isArray(cache[term]) && cache[term].length) {
-      return sortCatalogue(cache[term]);
+    const key = scopeKey(term, className);
+
+    if (Array.isArray(cache[key]) && cache[key].length) {
+      return sortCatalogue(cache[key]);
     }
 
-    // The bundled lesson snapshot belongs to First Term.
-    return term === "first" ? staticCatalogue() : [];
+    // The bundled static snapshot is specifically First Term / Basic 3.
+    return term === "first" && className === "Basic 3"
+      ? staticCatalogue()
+      : [];
   }
 
-  function setCatalogue(items, term = currentTerm()) {
+  function setCatalogue(items, term = currentTerm(), className = currentClass(term)) {
+    if (!term || !className) return;
+
     const cache = readJson(catalogueKey, {});
-    cache[term] = sortCatalogue((items || []).map((item) => ({
+    const key = scopeKey(term, className);
+
+    cache[key] = sortCatalogue((items || []).map((item) => ({
       week: item.week,
       subject: item.subject,
       topic: item.topic || "",
       dates: item.dates || "",
       key: lessonKey(item.week, item.subject)
     })));
+
     writeJson(catalogueKey, cache);
   }
 
@@ -93,6 +104,7 @@
     // One-time compatibility: old data represented First Term progress by class only.
     const legacy = readJson(legacyStorageKey, {});
     const migrated = {};
+
     Object.entries(legacy).forEach(([className, records]) => {
       if (records && typeof records === "object") {
         migrated["first::" + className] = records;
@@ -173,7 +185,7 @@
   }
 
   function summary(className = currentClass(), term = currentTerm()) {
-    const lessons = catalogue(term);
+    const lessons = catalogue(term, className);
     const records = recordsForClass(className, term);
     let completed = 0;
     let started = 0;
