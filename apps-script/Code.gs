@@ -106,6 +106,7 @@ function getManifest_(className) {
     title: doc.getName(),
     source: "google-doc",
     className: className,
+    curriculumTabId: (findTabByTitle_(doc.getTabs(), className) || { getId: function() { return ""; } }).getId(),
     modifiedAt: modifiedAt,
     subjects: subjects
   };
@@ -187,18 +188,9 @@ function getClassSubjectTabs_(doc, className) {
   const classTab = findTabByTitle_(doc.getTabs(), className);
 
   if (classTab) {
-    const descendants = [];
-
-    function collectChildren(tab) {
-      tab.getChildTabs().forEach(function(child) {
-        descendants.push(child);
-        collectChildren(child);
-      });
-    }
-
-    collectChildren(classTab);
-
-    return descendants.map(function(tab) {
+    // The class tab itself is the curriculum/overview page.
+    // Only its DIRECT child tabs are lesson subjects.
+    return classTab.getChildTabs().map(function(tab) {
       return {
         tab: tab,
         subject: tab.getTitle().trim()
