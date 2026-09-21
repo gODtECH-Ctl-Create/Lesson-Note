@@ -166,7 +166,7 @@ function renderCompletedLessons() {
   const term = window.LessonHubTerm?.get() || "";
   const selectedClass = window.LessonHubClass?.get(term) || "";
   const records = window.LessonHubProgress.recordsForClass(selectedClass, term);
-  const completed = window.LessonHubProgress.catalogue(term).filter((lesson) => (
+  const completed = window.LessonHubProgress.catalogue(term, selectedClass).filter((lesson) => (
     records[lesson.key]?.status === "completed"
   ));
 
@@ -214,7 +214,7 @@ function renderProgress() {
   const selectedClass = window.LessonHubClass?.get(term) || "";
   const summary = window.LessonHubProgress.summary(selectedClass, term);
   const records = window.LessonHubProgress.recordsForClass(selectedClass, term);
-  const catalogue = window.LessonHubProgress.catalogue(term);
+  const catalogue = window.LessonHubProgress.catalogue(term, selectedClass);
 
   const setText = (id, value) => {
     const element = document.getElementById(id);
