@@ -1,45 +1,95 @@
 # Google Apps Script live bridge
 
-This folder contains the one-time Google Apps Script backend used by the GitHub Pages lesson-note viewer.
+LessonHub uses **one Google Doc per academic term**.
 
-## Why it works well with this document
+## Required Google Docs tab structure
 
-The master Google Doc already uses:
-- one Google Docs **tab per subject**
-- **WEEK 1, WEEK 2, ...** headings inside each subject tab
-- native Docs formatting for bold, italics, headings, lists and tables
+Each class is a parent tab. The class parent tab can contain the curriculum/overview for that class. Its direct child tabs are the lesson subjects.
 
-The script reads those tabs and week headings dynamically.
+Example:
 
-## One-time setup
+```text
+First Term Google Doc
+├── Nursery 1
+│   ├── English
+│   ├── Mathematics
+│   └── CRK
+├── Nursery 2
+│   ├── English
+│   └── Mathematics
+├── Basic 1
+│   └── ...
+├── Basic 2
+│   └── ...
+├── Basic 3
+│   ├── CRK
+│   ├── English
+│   └── Mathematics
+├── Basic 4
+│   └── ...
+└── Basic 5
+    └── ...
+```
 
-1. Open the master Google Doc: **LESSON NOTE [BASIC 3 ] 2026**.
+The **class parent tab itself is not treated as a subject**. It is reserved for the main curriculum/overview.
+
+Inside each subject child tab, lessons are separated by WEEK headings such as:
+
+```text
+WEEK 1 (September 8 – 12, 2026): Topic title
+```
+
+The API receives the selected class from LessonHub:
+
+```text
+?action=manifest&class=Basic%203
+```
+
+and individual lessons are requested with:
+
+```text
+?action=lesson&class=Basic%203&subject=CRK&week=Week%202
+```
+
+This prevents one class from seeing another class's lesson notes.
+
+## Deployment
+
+For each term document:
+
+1. Open the Google Doc.
 2. Choose **Extensions -> Apps Script**.
-3. Replace the contents of `Code.gs` with the code from this repository's `apps-script/Code.gs`.
-4. Click **Deploy -> New deployment**.
-5. Select **Web app**.
-6. Set **Execute as** to **Me**.
-7. Set **Who has access** to **Anyone**.
-8. Click **Deploy** and authorize the script.
-9. Copy the Web App URL ending in `/exec`.
-10. Put that URL in `config.js` as `window.LESSON_API_URL`.
+3. Replace `Code.gs` with the latest `apps-script/Code.gs` from this repository.
+4. Confirm `CONFIG.DOCUMENT_ID` is the ID of that term's Google Doc.
+5. Choose **Deploy -> Manage deployments**.
+6. Edit the existing Web App deployment.
+7. Select **New version**.
+8. Keep **Execute as: Me**.
+9. Keep **Who has access: Anyone**.
+10. Deploy.
 
-## Adding new lesson content
+Updating the existing deployment keeps the same `/exec` URL.
 
-For an existing subject:
-- open that subject's tab in the Google Doc
-- add a new heading such as:
-  `WEEK 11 (November 23 – 27, 2026): Revision`
-- use the same **Heading 2** style used by the existing WEEK headings
-- add the lesson content underneath it
+## Version checks
 
-For a new subject:
-- create a new Google Docs tab
-- name the tab with the subject name
-- add WEEK headings and lesson content inside it
+LessonHub uses the lightweight endpoint:
 
-The site refreshes its week/subject list from the Google Doc. The script uses a short 30-second cache, so edits normally appear within about half a minute after the next reload.
+```text
+?action=version
+```
+
+to check whether the term document has changed without parsing all lessons.
+
+## Offline use
+
+LessonHub caches lessons by:
+
+```text
+term + class + week + subject
+```
+
+so cached lessons for Basic 3 cannot appear under Basic 1, Basic 4, or another class.
 
 ## Privacy
 
-The web app is read-only, but if it is deployed to **Anyone**, lesson content returned by the script is effectively public to anyone who knows the endpoint. Do not use this deployment mode for private/sensitive lesson material.
+The web app is read-only, but when deployed to **Anyone**, lesson content returned by the endpoint is effectively accessible to anyone who knows the endpoint. Do not place sensitive/private material in these lesson documents.
