@@ -25,6 +25,14 @@
     return window.LessonHubTerm?.label?.(currentTerm()) || "Term";
   }
 
+  function normalizeClassName(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   function setStatus(mode, message, modifiedAt = "") {
     if (status) {
       status.textContent = message;
@@ -72,7 +80,7 @@
 
     if (
       !payload?.className ||
-      String(payload.className).trim().toLowerCase() !== className.trim().toLowerCase()
+      normalizeClassName(payload.className) !== normalizeClassName(className)
     ) {
       throw new Error("The curriculum response did not match the selected class.");
     }
