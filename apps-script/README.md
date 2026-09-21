@@ -2,6 +2,19 @@
 
 LessonHub uses **one Google Doc per academic term**.
 
+
+## Term-specific copy-and-paste files
+
+Use the matching file for each Google Docs term document:
+
+- `Code-1st-Term.gs` → First Term
+- `Code-2nd-Term.gs` → Second Term
+- `Code-3rd-Term.gs` → Third Term
+
+Each file already contains that term document's `DOCUMENT_ID`, so you can copy the whole file directly into that term's Apps Script editor and deploy it.
+
+`Code.gs` remains the canonical/reference copy and currently points to First Term.
+
 ## Required Google Docs tab structure
 
 Each class is a parent tab. The class parent tab can contain the curriculum/overview for that class. Its direct child tabs are the lesson subjects.
