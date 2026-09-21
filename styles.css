@@ -1225,3 +1225,44 @@ select:disabled{
   border-radius:18px;
  }
 }
+
+
+/* Main curriculum page */
+.curriculum-shell{
+ max-width:1180px;
+}
+
+.curriculum-summary{
+ margin-bottom:16px;
+}
+
+.curriculum-source-bar{
+ margin-bottom:16px;
+}
+
+.curriculum-content{
+ width:100%;
+}
+
+.curriculum-document{
+ margin:0;
+}
+
+.curriculum-document .doc-table-wrap{
+ overflow-x:auto;
+ -webkit-overflow-scrolling:touch;
+}
+
+.curriculum-document .doc-table{
+ min-width:680px;
+}
+
+.curriculum-empty{
+ margin-top:0;
+}
+
+@media(max-width:760px){
+ .curriculum-document .doc-table{
+  min-width:620px;
+ }
+}
