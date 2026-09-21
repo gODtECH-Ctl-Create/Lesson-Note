@@ -77,7 +77,14 @@
       throw new Error("The curriculum response did not match the selected class.");
     }
 
-    await window.LessonHubOffline?.saveCurriculum?.(term, className, payload).catch(() => {});
+    if (typeof window.LessonHubOffline?.saveCurriculum === "function") {
+      try {
+        await window.LessonHubOffline.saveCurriculum(term, className, payload);
+      } catch (error) {
+        console.warn("Could not cache curriculum for offline use.", error);
+      }
+    }
+
     return payload;
   }
 
@@ -120,7 +127,15 @@
     loadPromise = (async () => {
       if (refreshButton) refreshButton.disabled = true;
 
-      const cached = await window.LessonHubOffline?.getCurriculum?.(term, className).catch(() => null);
+      let cached = null;
+
+      if (typeof window.LessonHubOffline?.getCurriculum === "function") {
+        try {
+          cached = await window.LessonHubOffline.getCurriculum(term, className);
+        } catch (error) {
+          console.warn("Could not read saved curriculum.", error);
+        }
+      }
 
       if (!force && cached?.curriculum) {
         render(cached.curriculum);
@@ -171,7 +186,9 @@
         render(null);
         setStatus("missing", currentTermLabel() + " · " + className + " · Curriculum unavailable");
         if (updated) {
-          updated.textContent = "Redeploy the latest Apps Script if this class parent tab already contains the curriculum.";
+          updated.textContent = error?.message
+            ? "Could not load curriculum: " + error.message
+            : "Could not load curriculum from the live Google Doc.";
         }
         return null;
       } finally {
