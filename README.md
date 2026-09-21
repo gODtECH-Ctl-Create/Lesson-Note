@@ -1,21 +1,20 @@
-# LESSON NOTE [BASIC 3] 2026
+# LessonHub
 
 A lightweight GitHub Pages lesson-note viewer with a **live Google Docs source** and a bundled static fallback.
 
 ## Live architecture
 
 ```text
-Master Google Doc
+One Google Doc per term
+  -> Class parent tab
+      -> curriculum/overview on the parent tab
+      -> direct child tabs = subjects
+          -> WEEK headings = lessons
   -> Google Apps Script Web App
-  -> GitHub Pages
-  -> Week -> Subject -> View Lesson
+  -> GitHub Pages / installable PWA
 ```
 
-The master Google Doc already has an ideal structure for this:
-
-- each Google Docs **tab is a subject**
-- each lesson begins with a **WEEK <number>** heading
-- native Google Docs bold, italic, underline, headings, lists, tables and inline images are rendered by the live API
+LessonHub sends both the **academic term** and the **selected class** to the lesson API. Lesson data and offline data are isolated by term and class.
 
 ## One-time setup
 
