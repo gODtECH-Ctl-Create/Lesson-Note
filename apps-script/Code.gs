@@ -1,8 +1,8 @@
 /**
  * Live Lesson Note API
  *
- * Source document: LESSON NOTE [BASIC 3 ] 2026
- * Each Google Docs tab is treated as a subject.
+ * One Google Doc is used per academic term.
+ * Class tabs (for example "Basic 3") contain child subject tabs.
  * Each paragraph beginning with "WEEK <number>" is treated as a lesson boundary.
  *
  * Deploy as a Web App:
@@ -26,16 +26,23 @@ function doGet(e) {
     if (action === "version") {
       payload = getVersion_();
     } else if (action === "manifest") {
-      payload = getManifest_();
+      const className = String(e.parameter.class || e.parameter.className || "").trim();
+
+      if (!className) {
+        throw new Error("class is required");
+      }
+
+      payload = getManifest_(className);
     } else if (action === "lesson") {
+      const className = String(e.parameter.class || e.parameter.className || "").trim();
       const subject = String(e.parameter.subject || "").trim();
       const week = String(e.parameter.week || "").trim();
 
-      if (!subject || !week) {
-        throw new Error("subject and week are required");
+      if (!className || !subject || !week) {
+        throw new Error("class, subject and week are required");
       }
 
-      payload = getLesson_(subject, week);
+      payload = getLesson_(className, subject, week);
     } else if (action === "health") {
       payload = {
         ok: true,
@@ -69,39 +76,25 @@ function getVersion_() {
   };
 }
 
-function getManifest_() {
+function getManifest_(className) {
   const cache = CacheService.getScriptCache();
   const file = DriveApp.getFileById(CONFIG.DOCUMENT_ID);
   const modifiedAt = file.getLastUpdated().toISOString();
-  const cacheKey = "manifest-v4:" + modifiedAt;
+  const classKey = normalizeName_(className);
+  const cacheKey = "manifest-v5:" + modifiedAt + ":" + classKey;
   const cached = cache.get(cacheKey);
   if (cached) return JSON.parse(cached);
 
   const doc = DocumentApp.openById(CONFIG.DOCUMENT_ID);
-  const tabs = getAllTabs_(doc);
+  const subjectTabs = getClassSubjectTabs_(doc, className);
 
-  const subjects = tabs.map(function(tab) {
-    const title = tab.getTitle().trim();
-    const body = tab.asDocumentTab().getBody();
-    const weeks = [];
-
-    for (let i = 0; i < body.getNumChildren(); i++) {
-      const child = body.getChild(i);
-      const heading = parseWeekHeading_(elementText_(child));
-
-      if (heading) {
-        weeks.push({
-          week: "Week " + heading.number,
-          number: heading.number,
-          dates: heading.dates,
-          topic: heading.topic
-        });
-      }
-    }
+  const subjects = subjectTabs.map(function(entry) {
+    const body = entry.tab.asDocumentTab().getBody();
+    const weeks = findWeeksInBody_(body);
 
     return {
-      subject: title,
-      tabId: tab.getId(),
+      subject: entry.subject,
+      tabId: entry.tab.getId(),
       weeks: weeks
     };
   }).filter(function(subject) {
@@ -112,6 +105,7 @@ function getManifest_() {
     ok: true,
     title: doc.getName(),
     source: "google-doc",
+    className: className,
     modifiedAt: modifiedAt,
     subjects: subjects
   };
@@ -120,26 +114,34 @@ function getManifest_() {
   return payload;
 }
 
-function getLesson_(subjectName, weekLabel) {
+function getLesson_(className, subjectName, weekLabel) {
   const weekNumber = numberFromWeek_(weekLabel);
   if (!weekNumber) throw new Error("Invalid week: " + weekLabel);
 
   const cache = CacheService.getScriptCache();
   const file = DriveApp.getFileById(CONFIG.DOCUMENT_ID);
   const modifiedAt = file.getLastUpdated().toISOString();
-  const cacheKey = "lesson-v4:" + modifiedAt + ":" + subjectName.toLowerCase() + ":" + weekNumber;
+  const cacheKey = [
+    "lesson-v5",
+    modifiedAt,
+    normalizeName_(className),
+    normalizeName_(subjectName),
+    weekNumber
+  ].join(":");
   const cached = cache.get(cacheKey);
   if (cached) return JSON.parse(cached);
 
   const doc = DocumentApp.openById(CONFIG.DOCUMENT_ID);
-  const tabs = getAllTabs_(doc);
-  const tab = tabs.find(function(item) {
-    return item.getTitle().trim().toLowerCase() === subjectName.trim().toLowerCase();
+  const subjectTabs = getClassSubjectTabs_(doc, className);
+  const entry = subjectTabs.find(function(item) {
+    return normalizeName_(item.subject) === normalizeName_(subjectName);
   });
 
-  if (!tab) throw new Error("Subject not found: " + subjectName);
+  if (!entry) {
+    throw new Error("Subject not found for " + className + ": " + subjectName);
+  }
 
-  const body = tab.asDocumentTab().getBody();
+  const body = entry.tab.asDocumentTab().getBody();
   let startIndex = -1;
   let endIndex = body.getNumChildren();
   let headingInfo = null;
@@ -161,23 +163,81 @@ function getLesson_(subjectName, weekLabel) {
   }
 
   if (startIndex === -1) {
-    throw new Error("Week " + weekNumber + " was not found in " + subjectName);
+    throw new Error(
+      "Week " + weekNumber + " was not found in " + className + " / " + subjectName
+    );
   }
-
-  const renderedHtml = renderBodyRange_(body, startIndex, endIndex);
 
   const payload = {
     ok: true,
-    subject: tab.getTitle().trim(),
+    className: className,
+    subject: entry.subject,
     week: "Week " + weekNumber,
     dates: headingInfo ? headingInfo.dates : "",
     topic: headingInfo ? headingInfo.topic : "",
-    html: renderedHtml,
+    html: renderBodyRange_(body, startIndex, endIndex),
     modifiedAt: modifiedAt
   };
 
   cache.put(cacheKey, JSON.stringify(payload), CONFIG.CACHE_SECONDS);
   return payload;
+}
+
+function getClassSubjectTabs_(doc, className) {
+  const classTab = findTabByTitle_(doc.getTabs(), className);
+
+  if (classTab) {
+    const descendants = [];
+
+    function collectChildren(tab) {
+      tab.getChildTabs().forEach(function(child) {
+        descendants.push(child);
+        collectChildren(child);
+      });
+    }
+
+    collectChildren(classTab);
+
+    return descendants.map(function(tab) {
+      return {
+        tab: tab,
+        subject: tab.getTitle().trim()
+      };
+    }).filter(function(entry) {
+      return findWeeksInBody_(entry.tab.asDocumentTab().getBody()).length > 0;
+    });
+  }
+
+  // Compatibility for flat tabs such as "Basic 3 - Mathematics".
+  const prefixed = [];
+  getAllTabs_(doc).forEach(function(tab) {
+    const subject = subjectFromPrefixedTab_(tab.getTitle(), className);
+    if (!subject) return;
+
+    const weeks = findWeeksInBody_(tab.asDocumentTab().getBody());
+    if (!weeks.length) return;
+
+    prefixed.push({ tab: tab, subject: subject });
+  });
+
+  return prefixed;
+}
+
+function findTabByTitle_(tabs, title) {
+  const wanted = normalizeName_(title);
+
+  for (let i = 0; i < tabs.length; i++) {
+    const tab = tabs[i];
+
+    if (normalizeName_(tab.getTitle()) === wanted) {
+      return tab;
+    }
+
+    const nested = findTabByTitle_(tab.getChildTabs(), title);
+    if (nested) return nested;
+  }
+
+  return null;
 }
 
 function getAllTabs_(doc) {
@@ -190,6 +250,44 @@ function getAllTabs_(doc) {
 
   doc.getTabs().forEach(walk);
   return result;
+}
+
+function findWeeksInBody_(body) {
+  const weeks = [];
+
+  for (let i = 0; i < body.getNumChildren(); i++) {
+    const heading = parseWeekHeading_(elementText_(body.getChild(i)));
+
+    if (heading) {
+      weeks.push({
+        week: "Week " + heading.number,
+        number: heading.number,
+        dates: heading.dates,
+        topic: heading.topic
+      });
+    }
+  }
+
+  return weeks;
+}
+
+function normalizeName_(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function subjectFromPrefixedTab_(tabTitle, className) {
+  const title = String(tabTitle || "").trim();
+  const classText = String(className || "").trim();
+
+  if (!title || !classText) return "";
+
+  const escaped = classText.replace(/[.*+?^$()|[\]{}\\]/g, "\\$&");
+  const match = title.match(new RegExp("^" + escaped + "\\s*[-:|/]\\s*(.+)$", "i"));
+  return match ? match[1].trim() : "";
 }
 
 function parseWeekHeading_(value) {
