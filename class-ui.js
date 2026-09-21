@@ -15,6 +15,7 @@ const ROUTE_SCREENS = {
   classes: "classScreen",
   dashboard: "dashboardScreen",
   lessons: "workspaceScreen",
+  curriculum: "curriculumScreen",
   completed: "completedScreen",
   progress: "progressScreen"
 };
@@ -110,6 +111,7 @@ function syncContextLabels() {
     progressTermName: termLabel || "this term",
     dashboardTermBadge: termLabel,
     workspaceTermChip: termLabel,
+    curriculumTermName: termLabel || "this term",
     classTermEyebrow: termLabel || "Academic term"
   };
 
@@ -117,6 +119,16 @@ function syncContextLabels() {
     const element = document.getElementById(id);
     if (element) element.textContent = value;
   });
+
+  const curriculumClassName = document.getElementById("curriculumClassName");
+  if (curriculumClassName) {
+    curriculumClassName.textContent = selectedClass ? selectedClass + " curriculum" : "Class curriculum";
+  }
+
+  const curriculumTermEyebrow = document.getElementById("curriculumTermEyebrow");
+  if (curriculumTermEyebrow) {
+    curriculumTermEyebrow.textContent = termLabel ? termLabel + " · Main curriculum" : "Main curriculum";
+  }
 
   const progressClassName = document.getElementById("progressClassName");
   if (progressClassName) {
@@ -319,6 +331,10 @@ async function applyRoute() {
   showScreen(ROUTE_SCREENS[route]);
   syncContextLabels();
 
+  if (route === "curriculum") {
+    await window.LessonHubCurriculum?.load?.();
+  }
+
   if (route === "lessons") {
     await window.LessonHubLessons?.prepareSource?.();
     const week = params.get("week") || "";
@@ -407,10 +423,12 @@ function setupNavigation() {
     navigate("dashboard");
   });
 
+  document.getElementById("curriculumBackBtn")?.addEventListener("click", () => navigate("dashboard"));
   document.getElementById("completedBackBtn")?.addEventListener("click", () => navigate("dashboard"));
   document.getElementById("progressBackBtn")?.addEventListener("click", () => navigate("dashboard"));
 
   document.getElementById("openLessonsBtn")?.addEventListener("click", () => navigate("lessons"));
+  document.getElementById("openCurriculumBtn")?.addEventListener("click", () => navigate("curriculum"));
   document.getElementById("openCompletedBtn")?.addEventListener("click", () => navigate("completed"));
   document.getElementById("openProgressBtn")?.addEventListener("click", () => navigate("progress"));
 }
