@@ -45,7 +45,15 @@ The API receives the selected class from LessonHub:
 ?action=manifest&class=Basic%203
 ```
 
-and individual lessons are requested with:
+The class parent tab is exposed as the **Main Curriculum** page:
+
+```text
+?action=curriculum&class=Basic%203
+```
+
+The curriculum endpoint renders the entire parent class tab, including tables, headings, lists and inline formatting. Direct child tabs remain the lesson subjects.
+
+Individual lessons are requested with:
 
 ```text
 ?action=lesson&class=Basic%203&subject=CRK&week=Week%202
