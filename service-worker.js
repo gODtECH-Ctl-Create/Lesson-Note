@@ -1,4 +1,4 @@
-const CACHE_NAME = "lessonhub-shell-v4";
+const CACHE_NAME = "lessonhub-shell-v5";
 
 const APP_SHELL = [
   "./",
@@ -16,6 +16,7 @@ const APP_SHELL = [
   "./class-dashboard.js",
   "./class-ui.js",
   "./live-api.js",
+  "./curriculum.js",
   "./offline-store.js",
   "./pwa.js",
   "./splash.js",
