@@ -551,6 +551,7 @@ async function downloadCurrentTerm() {
   try {
     if (navigator.onLine) {
       await loadSource(true);
+      await window.LessonHubCurriculum?.downloadForOffline?.();
     } else {
       await loadSource(false);
     }
