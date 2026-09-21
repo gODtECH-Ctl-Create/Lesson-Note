@@ -33,6 +33,14 @@ function doGet(e) {
       }
 
       payload = getManifest_(className);
+    } else if (action === "curriculum") {
+      const className = String(e.parameter.class || e.parameter.className || "").trim();
+
+      if (!className) {
+        throw new Error("class is required");
+      }
+
+      payload = getCurriculum_(className);
     } else if (action === "lesson") {
       const className = String(e.parameter.class || e.parameter.className || "").trim();
       const subject = String(e.parameter.subject || "").trim();
@@ -109,6 +117,36 @@ function getManifest_(className) {
     curriculumTabId: (findTabByTitle_(doc.getTabs(), className) || { getId: function() { return ""; } }).getId(),
     modifiedAt: modifiedAt,
     subjects: subjects
+  };
+
+  cache.put(cacheKey, JSON.stringify(payload), CONFIG.CACHE_SECONDS);
+  return payload;
+}
+
+function getCurriculum_(className) {
+  const cache = CacheService.getScriptCache();
+  const file = DriveApp.getFileById(CONFIG.DOCUMENT_ID);
+  const modifiedAt = file.getLastUpdated().toISOString();
+  const cacheKey = "curriculum-v1:" + modifiedAt + ":" + normalizeName_(className);
+  const cached = cache.get(cacheKey);
+  if (cached) return JSON.parse(cached);
+
+  const doc = DocumentApp.openById(CONFIG.DOCUMENT_ID);
+  const classTab = findTabByTitle_(doc.getTabs(), className);
+
+  if (!classTab) {
+    throw new Error("Class tab not found: " + className);
+  }
+
+  const body = classTab.asDocumentTab().getBody();
+  const payload = {
+    ok: true,
+    title: doc.getName(),
+    source: "google-doc",
+    className: classTab.getTitle().trim(),
+    tabId: classTab.getId(),
+    modifiedAt: modifiedAt,
+    html: renderBodyRange_(body, 0, body.getNumChildren())
   };
 
   cache.put(cacheKey, JSON.stringify(payload), CONFIG.CACHE_SECONDS);
