@@ -16,6 +16,8 @@ One Google Doc per term
 
 LessonHub sends both the **academic term** and the **selected class** to the lesson API. Lesson data and offline data are isolated by term and class.
 
+Each class dashboard also has a **Main Curriculum** page. It reads the curriculum/overview directly from the class parent tab, while the direct child tabs under that class provide the detailed lesson notes by subject and week.
+
 ## One-time setup
 
 The live bridge code is already in:
