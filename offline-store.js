@@ -163,6 +163,25 @@
     return get(META, "manifest:" + scopeKey(term, className));
   }
 
+  async function saveCurriculum(term, className, curriculum) {
+    if (!term || !className || !curriculum) return null;
+
+    return put(META, {
+      key: "curriculum:" + scopeKey(term, className),
+      scope: scopeKey(term, className),
+      term,
+      className,
+      curriculum,
+      modifiedAt: curriculum?.modifiedAt || "",
+      savedAt: new Date().toISOString()
+    });
+  }
+
+  async function getCurriculum(term = currentTerm(), className = currentClass(term)) {
+    if (!term || !className) return null;
+    return get(META, "curriculum:" + scopeKey(term, className));
+  }
+
   async function saveSyncState(term, className, state) {
     if (!term || !className) return null;
 
@@ -206,6 +225,7 @@
       };
 
       tx.objectStore(META).delete("manifest:" + scope);
+      tx.objectStore(META).delete("curriculum:" + scope);
       tx.objectStore(META).delete("sync:" + scope);
 
       tx.oncomplete = () => resolve();
@@ -221,6 +241,8 @@
     getLesson,
     saveManifest,
     getManifest,
+    saveCurriculum,
+    getCurriculum,
     saveSyncState,
     getSyncState,
     countLessons,
