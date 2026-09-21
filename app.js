@@ -41,6 +41,14 @@ function currentScope() {
   return currentTerm() + "::" + currentClass();
 }
 
+function normalizeClassName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function updateCompletionButton() {
   if (!toggleCompleteBtn) return;
 
@@ -432,7 +440,7 @@ async function loadSource(force = false) {
 
         if (
           !freshManifest.className ||
-          String(freshManifest.className).trim().toLowerCase() !== className.trim().toLowerCase()
+          normalizeClassName(freshManifest.className) !== normalizeClassName(className)
         ) {
           throw new Error(
             "This term API has not been redeployed with class-aware lesson support yet."
