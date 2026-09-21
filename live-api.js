@@ -26,10 +26,15 @@ window.lessonApi = {
     return new Promise((resolve, reject) => {
       const callbackName = "__lessonApi_" + Date.now() + "_" + Math.random().toString(36).slice(2);
       const script = document.createElement("script");
+      const timeoutMs = action === "curriculum" ? 45000 : 15000;
       const timeout = window.setTimeout(() => {
         cleanup();
-        reject(new Error("The live Google Doc request timed out."));
-      }, 15000);
+        reject(new Error(
+          action === "curriculum"
+            ? "The curriculum request took too long to load."
+            : "The live Google Doc request timed out."
+        ));
+      }, timeoutMs);
 
       function cleanup() {
         window.clearTimeout(timeout);
