@@ -254,27 +254,6 @@ function setOfflineProgress(done, total, message = "") {
   }
 }
 
-async function useCachedManifest(term) {
-  if (!window.LessonHubOffline?.supported) return false;
-
-  try {
-    const cached = await window.LessonHubOffline.getManifest(term, currentClass());
-    if (!cached?.index || !Object.keys(cached.index).length) return false;
-
-    lessonIndex = cached.index;
-    liveManifest = cached.manifest || null;
-    populateWeeks();
-    window.LessonHubProgress?.setCatalogue(indexToCatalogue(lessonIndex), term, className);
-    setSourceStatus("cached", currentTermLabel() + " · Saved on this device", cached.modifiedAt || "");
-    refreshSourceBtn.disabled = false;
-    await refreshOfflinePanel(term);
-    return true;
-  } catch (error) {
-    console.warn("Could not load the saved lesson manifest.", error);
-    return false;
-  }
-}
-
 function lastUpdateCheckKey(term = currentTerm(), className = currentClass()) {
   return "lessonhub_last_update_check_" + term + "::" + className;
 }
@@ -307,6 +286,8 @@ async function checkForUpdates(options = {}) {
   }
 
   if (updateCheckInFlight) return updateCheckInFlight;
+
+  const checkScope = currentScope();
 
   updateCheckInFlight = (async () => {
     window.lessonApi?.configureForTerm?.(term);
@@ -342,6 +323,10 @@ async function checkForUpdates(options = {}) {
       }
 
       markUpdateChecked(term, className);
+
+      if (currentScope() !== checkScope) {
+        return { checked: true, changed: false, ignored: true };
+      }
 
       const localVersion = cachedManifest?.modifiedAt || liveManifest?.modifiedAt || "";
       const remoteVersion = version?.modifiedAt || "";
@@ -435,7 +420,7 @@ async function loadSource(force = false) {
       setSourceStatus("cached", currentTermLabel() + " · Saved on this device", cachedManifest.modifiedAt || "");
       refreshSourceBtn.disabled = false;
       await refreshOfflinePanel(term);
-      scheduleAutomaticUpdateCheck(term);
+      scheduleAutomaticUpdateCheck(term, className);
       return lessonIndex;
     }
 
@@ -501,7 +486,7 @@ async function loadSource(force = false) {
       );
       refreshSourceBtn.disabled = false;
       await refreshOfflinePanel(term);
-      scheduleAutomaticUpdateCheck(term);
+      scheduleAutomaticUpdateCheck(term, className);
       return lessonIndex;
     }
 
@@ -1059,6 +1044,7 @@ window.LessonHubLessons = {
 function resetSourceForSelection() {
   loadedScope = "";
   sourcePromise = null;
+  updateCheckInFlight = null;
   lessonIndex = {};
   liveManifest = null;
   closeLesson({ updateRoute: false });
