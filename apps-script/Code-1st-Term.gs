@@ -346,6 +346,11 @@ function getFlatClassSubjectSections_(doc, className) {
     });
   }
 
+  const wantedClass = normalizeName_(className);
+  const wantedTerm = normalizeName_("First Term");
+  const sections = [];
+
+  // Format A: explicit metadata used by the original First Term master document.
   const markers = [];
 
   for (let i = 0; i < rows.length - 1; i++) {
@@ -366,7 +371,6 @@ function getFlatClassSubjectSections_(doc, className) {
         break;
       }
 
-      // Stop searching if the next section marker is reached.
       if (rows[j].text.match(/^Class:\s*/i)) break;
     }
 
@@ -380,10 +384,6 @@ function getFlatClassSubjectSections_(doc, className) {
     });
   }
 
-  const wantedClass = normalizeName_(className);
-  const wantedTerm = normalizeName_("First Term");
-  const sections = [];
-
   for (let i = 0; i < markers.length; i++) {
     const marker = markers[i];
 
@@ -396,12 +396,8 @@ function getFlatClassSubjectSections_(doc, className) {
     }
 
     const nextMarker = markers[i + 1];
-    let endIndex = nextMarker
-      ? nextMarker.subjectIndex
-      : rows.length;
+    let endIndex = nextMarker ? nextMarker.subjectIndex : rows.length;
 
-    // Some source documents transition directly from lesson notes into the
-    // next class curriculum without a Class/Term metadata block.
     const nextCurriculum = findNextCurriculumBoundary_(rows, marker.pos);
     endIndex = Math.min(endIndex, nextCurriculum);
 
@@ -413,10 +409,90 @@ function getFlatClassSubjectSections_(doc, className) {
     });
   }
 
-  // The First Term master document has CRK before the first explicit
-  // Class/Term metadata block. Include that initial Basic 3 lesson section.
+  // Format B: a class document/section headed like:
+  // BASIC 1 • FIRST TERM • WEEKS 1–10 • 2026
+  // followed by numbered subjects such as:
+  // 1. English Language
+  // Week 1 • September 14–18, 2026
+  if (!sections.length) {
+    const classHeaders = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const text = rows[i].text;
+      if (!text || !/\bFIRST\s+TERM\b/i.test(text)) continue;
+
+      const classMatch = text.match(/\b(NURSERY\s+\d+|BASIC\s+\d+)\b/i);
+      if (!classMatch) continue;
+
+      classHeaders.push({
+        index: i,
+        className: classMatch[1].trim(),
+        term: "First Term"
+      });
+    }
+
+    let matchingHeader = classHeaders.find(function(header) {
+      return normalizeName_(header.className) === wantedClass &&
+        normalizeName_(header.term) === wantedTerm;
+    });
+
+    // A standalone Basic 1 document may use its class name in the title
+    // rather than a repeated class header inside the body.
+    if (!matchingHeader && normalizeName_(doc.getName()).indexOf(wantedClass) !== -1) {
+      matchingHeader = {
+        index: -1,
+        className: className,
+        term: "First Term"
+      };
+    }
+
+    if (matchingHeader) {
+      const startBoundary = matchingHeader.index >= 0 ? matchingHeader.index + 1 : 0;
+      const headerPosition = classHeaders.findIndex(function(header) {
+        return header.index === matchingHeader.index;
+      });
+      const nextClassHeader = headerPosition >= 0 && classHeaders[headerPosition + 1]
+        ? classHeaders[headerPosition + 1].index
+        : rows.length;
+      const endBoundary = matchingHeader.index >= 0 ? nextClassHeader : rows.length;
+
+      const subjectMarkers = [];
+
+      for (let i = startBoundary; i < endBoundary; i++) {
+        const subjectMatch = rows[i].text.match(/^\d+\.\s+(.+)$/);
+        if (!subjectMatch) continue;
+
+        let nextNonEmpty = i + 1;
+        while (nextNonEmpty < endBoundary && !rows[nextNonEmpty].text) nextNonEmpty++;
+
+        if (nextNonEmpty >= endBoundary || !parseWeekHeading_(rows[nextNonEmpty].text)) continue;
+
+        subjectMarkers.push({
+          subject: subjectMatch[1].trim(),
+          subjectIndex: i,
+          startIndex: nextNonEmpty
+        });
+      }
+
+      for (let i = 0; i < subjectMarkers.length; i++) {
+        const marker = subjectMarkers[i];
+        const nextSubject = subjectMarkers[i + 1];
+        const endIndex = nextSubject ? nextSubject.subjectIndex : endBoundary;
+
+        sections.push({
+          body: body,
+          subject: marker.subject,
+          startIndex: marker.startIndex,
+          endIndex: endIndex
+        });
+      }
+    }
+  }
+
+  // The older First Term master document has CRK before its first explicit
+  // Class/Term metadata block. Preserve that compatibility path.
   if (normalizeName_(className) === normalizeName_("Basic 3") &&
-      normalizeName_("First Term") === wantedTerm) {
+      wantedTerm === normalizeName_("First Term")) {
     const firstMatch = markers.find(function(marker) {
       return normalizeName_(marker.className) === wantedClass &&
         normalizeName_(marker.term) === wantedTerm;
@@ -554,14 +630,37 @@ function subjectFromPrefixedTab_(tabTitle, className) {
 
 function parseWeekHeading_(value) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
-  const match = text.match(/^WEEK\s+(\d+)\s*(?:\(([^)]*)\))?\s*(?::\s*(.*))?$/i);
+  const match = text.match(/^WEEK\s+(\d+)\b(.*)$/i);
 
   if (!match) return null;
 
+  const number = Number(match[1]);
+  let remainder = String(match[2] || "").trim();
+  let dates = "";
+  let topic = "";
+
+  if (remainder) {
+    const parenthesized = remainder.match(/^\(([^)]*)\)\s*(?::\s*(.*))?$/);
+    if (parenthesized) {
+      dates = parenthesized[1].trim();
+      topic = (parenthesized[2] || "").trim();
+    } else {
+      const separated = remainder.match(/^[•·|]\s*(.*)$/);
+      if (separated) {
+        dates = separated[1].trim();
+      } else {
+        const colon = remainder.match(/^:\s*(.*)$/);
+        if (colon) {
+          topic = colon[1].trim();
+        }
+      }
+    }
+  }
+
   return {
-    number: Number(match[1]),
-    dates: (match[2] || "").trim(),
-    topic: (match[3] || "").trim()
+    number: number,
+    dates: dates,
+    topic: topic
   };
 }
 
