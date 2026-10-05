@@ -23,7 +23,7 @@ let loadedScope = "";
 let sourcePromise = null;
 let updateCheckInFlight = null;
 
-const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const UPDATE_CHECK_INTERVAL_MS = 15 * 60 * 1000;
 
 function currentTerm() {
   return window.LessonHubTerm?.get() || "first";
@@ -339,16 +339,7 @@ async function checkForUpdates(options = {}) {
       const localVersion = cachedManifest?.modifiedAt || liveManifest?.modifiedAt || "";
       const remoteVersion = version?.modifiedAt || "";
 
-      if (localVersion && remoteVersion && localVersion === remoteVersion) {
-        if (!silent) {
-          setSourceStatus(
-            cachedManifest ? "cached" : "live",
-            currentTermLabel() + " · Everything is up to date",
-            remoteVersion
-          );
-          sourceUpdated.textContent = "Checked just now · no new lesson updates.";
-        }
-        await refreshOfflinePanel(term);
+      if (localVersion && remoteVersion && localVersion === remoteVersion && silent) {
         return { checked: true, changed: false, version: remoteVersion };
       }
 
@@ -511,6 +502,11 @@ async function loadSource(force = false) {
         currentTermLabel() + (navigator.onLine ? " · Using saved copy" : " · Offline · using saved copy"),
         cachedManifest.modifiedAt || ""
       );
+      if (force && navigator.onLine) {
+        sourceUpdated.textContent =
+          "Live source unavailable: " + (error?.message || "The Apps Script request failed.") +
+          ". Showing the saved copy instead.";
+      }
       refreshSourceBtn.disabled = false;
       await refreshOfflinePanel(term);
       scheduleAutomaticUpdateCheck(term, className);
