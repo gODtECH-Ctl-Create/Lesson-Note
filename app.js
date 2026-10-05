@@ -1033,7 +1033,7 @@ function normalizeRouteSubject(value) {
   let normalized = String(value || "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\\s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 
   LESSON_CLASSES.forEach((className) => {
@@ -1052,7 +1052,7 @@ function routeSubjectsMatch(left, right) {
   if (!a || !b) return false;
   if (a === b) return true;
 
-  const stripFineArts = (value) => value.replace(/\\s+fine\\s+arts$/, "").trim();
+  const stripFineArts = (value) => value.replace(/\s+fine\s+arts$/, "").trim();
   return stripFineArts(a) === stripFineArts(b);
 }
 
