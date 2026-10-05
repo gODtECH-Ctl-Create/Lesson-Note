@@ -451,9 +451,17 @@ function getFlatClassSubjectSections_(doc, className) {
       const headerPosition = classHeaders.findIndex(function(header) {
         return header.index === matchingHeader.index;
       });
-      const nextClassHeader = headerPosition >= 0 && classHeaders[headerPosition + 1]
-        ? classHeaders[headerPosition + 1].index
-        : rows.length;
+      let nextClassHeader = rows.length;
+      if (headerPosition >= 0) {
+        for (let h = headerPosition + 1; h < classHeaders.length; h++) {
+          // The source document repeats the same class header on page breaks.
+          // Only a different class header marks the end of this class section.
+          if (normalizeName_(classHeaders[h].className) !== wantedClass) {
+            nextClassHeader = classHeaders[h].index;
+            break;
+          }
+        }
+      }
       const endBoundary = matchingHeader.index >= 0 ? nextClassHeader : rows.length;
 
       const subjectMarkers = [];
