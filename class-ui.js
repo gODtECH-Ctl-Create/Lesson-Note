@@ -321,6 +321,16 @@ async function applyRoute() {
     return;
   }
 
+  const requestedClass = params.get("class") || "";
+  if (requestedClass) {
+    const matchedClass = LESSON_CLASSES.find((className) =>
+      normalizeClassName(className) === normalizeClassName(requestedClass)
+    );
+    if (matchedClass && window.LessonHubClass?.get(term) !== matchedClass) {
+      window.LessonHubClass?.set(matchedClass, term);
+    }
+  }
+
   const selectedClass = window.LessonHubClass?.get(term) || "";
 
   if (route !== "classes" && !selectedClass) {
@@ -437,8 +447,12 @@ window.LessonHubRouter = {
   navigate,
   parseRoute,
   replaceLessonRoute(week = "", subject = "") {
-    const params = week && subject ? { week, subject } : {};
-    history.replaceState(null, "", routeHash("lessons", params));
+    const term = window.LessonHubTerm?.get() || "first";
+    const className = window.LessonHubClass?.get(term) || "";
+    const params = week && subject
+      ? { class: className, week, subject }
+      : {};
+    history.replaceState(null, "", routeHash("lessons", params, term));
   },
   refreshTrackerPages
 };
