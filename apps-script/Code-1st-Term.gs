@@ -89,25 +89,42 @@ function getManifest_(className) {
   const file = DriveApp.getFileById(CONFIG.DOCUMENT_ID);
   const modifiedAt = file.getLastUpdated().toISOString();
   const classKey = normalizeName_(className);
-  const cacheKey = "manifest-v5:" + modifiedAt + ":" + classKey;
+  const cacheKey = "manifest-v6:" + modifiedAt + ":" + classKey;
   const cached = cache.get(cacheKey);
   if (cached) return JSON.parse(cached);
 
   const doc = DocumentApp.openById(CONFIG.DOCUMENT_ID);
   const subjectTabs = getClassSubjectTabs_(doc, className);
 
-  const subjects = subjectTabs.map(function(entry) {
-    const body = entry.tab.asDocumentTab().getBody();
-    const weeks = findWeeksInBody_(body);
+  let subjects;
 
-    return {
-      subject: entry.subject,
-      tabId: entry.tab.getId(),
-      weeks: weeks
-    };
-  }).filter(function(subject) {
-    return subject.weeks.length > 0;
-  });
+  if (subjectTabs.length) {
+    subjects = subjectTabs.map(function(entry) {
+      const body = entry.tab.asDocumentTab().getBody();
+      const weeks = findWeeksInBody_(body);
+
+      return {
+        subject: entry.subject,
+        tabId: entry.tab.getId(),
+        weeks: weeks
+      };
+    }).filter(function(subject) {
+      return subject.weeks.length > 0;
+    });
+  } else {
+    // The current First Term master document is a flat Google Doc rather than
+    // a parent class tab with child subject tabs. Read the Basic 3 First Term
+    // sections directly from the document body.
+    subjects = getFlatClassSubjectSections_(doc, className).map(function(entry) {
+      return {
+        subject: entry.subject,
+        tabId: "",
+        weeks: findWeeksInBodyRange_(entry.body, entry.startIndex, entry.endIndex)
+      };
+    }).filter(function(subject) {
+      return subject.weeks.length > 0;
+    });
+  }
 
   const payload = {
     ok: true,
@@ -134,20 +151,56 @@ function getCurriculum_(className) {
   const doc = DocumentApp.openById(CONFIG.DOCUMENT_ID);
   const classTab = findTabByTitle_(doc.getTabs(), className);
 
-  if (!classTab) {
-    throw new Error("Class tab not found: " + className);
+  if (classTab) {
+    const body = classTab.asDocumentTab().getBody();
+    const payload = {
+      ok: true,
+      title: doc.getName(),
+      source: "google-doc",
+      className: classTab.getTitle().trim(),
+      tabId: classTab.getId(),
+      modifiedAt: modifiedAt,
+      html: renderBodyRange_(body, 0, body.getNumChildren())
+    };
+
+    cache.put(cacheKey, JSON.stringify(payload), CONFIG.CACHE_SECONDS);
+    return payload;
   }
 
-  const body = classTab.asDocumentTab().getBody();
+  const body = getPrimaryDocumentBody_(doc);
+  const wantedTitle = normalizeName_(className + " First Term Curriculum");
+  let curriculumStart = -1;
+  let curriculumEnd = body.getNumChildren();
+
+  for (let i = 0; i < body.getNumChildren(); i++) {
+    const text = String(elementText_(body.getChild(i)) || "").replace(/\s+/g, " ").trim();
+    if (normalizeName_(text) === wantedTitle) {
+      curriculumStart = i + 1;
+      continue;
+    }
+
+    if (curriculumStart !== -1 && /\bFirst Term Curriculum\b/i.test(text)) {
+      curriculumEnd = i;
+      break;
+    }
+  }
+
+  if (curriculumStart === -1) {
+    throw new Error("Class curriculum not found: " + className);
+  }
+
   const payload = {
     ok: true,
     title: doc.getName(),
     source: "google-doc",
-    className: classTab.getTitle().trim(),
-    tabId: classTab.getId(),
+    className: className,
+    tabId: "",
     modifiedAt: modifiedAt,
-    html: renderBodyRange_(body, 0, body.getNumChildren())
+    html: renderBodyRange_(body, curriculumStart, curriculumEnd)
   };
+
+  cache.put(cacheKey, JSON.stringify(payload), CONFIG.CACHE_SECONDS);
+  return payload;
 
   cache.put(cacheKey, JSON.stringify(payload), CONFIG.CACHE_SECONDS);
   return payload;
@@ -161,7 +214,7 @@ function getLesson_(className, subjectName, weekLabel) {
   const file = DriveApp.getFileById(CONFIG.DOCUMENT_ID);
   const modifiedAt = file.getLastUpdated().toISOString();
   const cacheKey = [
-    "lesson-v5",
+    "lesson-v6",
     modifiedAt,
     normalizeName_(className),
     normalizeName_(subjectName),
@@ -172,20 +225,40 @@ function getLesson_(className, subjectName, weekLabel) {
 
   const doc = DocumentApp.openById(CONFIG.DOCUMENT_ID);
   const subjectTabs = getClassSubjectTabs_(doc, className);
-  const entry = subjectTabs.find(function(item) {
+  const tabEntry = subjectTabs.find(function(item) {
     return normalizeName_(item.subject) === normalizeName_(subjectName);
   });
 
-  if (!entry) {
-    throw new Error("Subject not found for " + className + ": " + subjectName);
+  let body;
+  let sectionStartIndex = 0;
+  let sectionEndIndex;
+  let subjectLabel = subjectName;
+
+  if (tabEntry) {
+    body = tabEntry.tab.asDocumentTab().getBody();
+    sectionEndIndex = body.getNumChildren();
+    subjectLabel = tabEntry.subject;
+  } else {
+    const flatSections = getFlatClassSubjectSections_(doc, className);
+    const flatEntry = flatSections.find(function(item) {
+      return normalizeName_(item.subject) === normalizeName_(subjectName);
+    });
+
+    if (!flatEntry) {
+      throw new Error("Subject not found for " + className + ": " + subjectName);
+    }
+
+    body = flatEntry.body;
+    sectionStartIndex = flatEntry.startIndex;
+    sectionEndIndex = flatEntry.endIndex;
+    subjectLabel = flatEntry.subject;
   }
 
-  const body = entry.tab.asDocumentTab().getBody();
   let startIndex = -1;
-  let endIndex = body.getNumChildren();
+  let endIndex = sectionEndIndex;
   let headingInfo = null;
 
-  for (let i = 0; i < body.getNumChildren(); i++) {
+  for (let i = sectionStartIndex; i < sectionEndIndex; i++) {
     const info = parseWeekHeading_(elementText_(body.getChild(i)));
     if (!info) continue;
 
@@ -210,7 +283,7 @@ function getLesson_(className, subjectName, weekLabel) {
   const payload = {
     ok: true,
     className: className,
-    subject: entry.subject,
+    subject: subjectLabel,
     week: "Week " + weekNumber,
     dates: headingInfo ? headingInfo.dates : "",
     topic: headingInfo ? headingInfo.topic : "",
@@ -251,6 +324,165 @@ function getClassSubjectTabs_(doc, className) {
   });
 
   return prefixed;
+}
+
+function getPrimaryDocumentBody_(doc) {
+  const tabs = doc.getTabs ? doc.getTabs() : [];
+  if (tabs && tabs.length) {
+    return tabs[0].asDocumentTab().getBody();
+  }
+
+  return doc.getBody();
+}
+
+function getFlatClassSubjectSections_(doc, className) {
+  const body = getPrimaryDocumentBody_(doc);
+  const rows = [];
+
+  for (let i = 0; i < body.getNumChildren(); i++) {
+    rows.push({
+      index: i,
+      text: String(elementText_(body.getChild(i)) || "").replace(/\s+/g, " ").trim()
+    });
+  }
+
+  const markers = [];
+
+  for (let i = 0; i < rows.length - 1; i++) {
+    const classMatch = rows[i].text.match(/^Class:\s*(.+)$/i);
+    const termMatch = rows[i + 1].text.match(/^Term:\s*(.+)$/i);
+
+    if (!classMatch || !termMatch) continue;
+
+    let subjectIndex = i - 1;
+    while (subjectIndex >= 0 && !rows[subjectIndex].text) subjectIndex--;
+
+    if (subjectIndex < 0) continue;
+
+    let firstWeekIndex = -1;
+    for (let j = i + 2; j < rows.length; j++) {
+      if (parseWeekHeading_(rows[j].text)) {
+        firstWeekIndex = j;
+        break;
+      }
+
+      // Stop searching if the next section marker is reached.
+      if (rows[j].text.match(/^Class:\s*/i)) break;
+    }
+
+    markers.push({
+      pos: i,
+      className: classMatch[1].trim().replace(/\s*\([^)]*\)\s*$/, ""),
+      term: termMatch[1].trim(),
+      subject: rows[subjectIndex].text,
+      subjectIndex: subjectIndex,
+      startIndex: firstWeekIndex
+    });
+  }
+
+  const wantedClass = normalizeName_(className);
+  const wantedTerm = normalizeName_("First Term");
+  const sections = [];
+
+  for (let i = 0; i < markers.length; i++) {
+    const marker = markers[i];
+
+    if (
+      normalizeName_(marker.className) !== wantedClass ||
+      normalizeName_(marker.term) !== wantedTerm ||
+      marker.startIndex === -1
+    ) {
+      continue;
+    }
+
+    const nextMarker = markers[i + 1];
+    let endIndex = nextMarker
+      ? nextMarker.subjectIndex
+      : rows.length;
+
+    // Some source documents transition directly from lesson notes into the
+    // next class curriculum without a Class/Term metadata block.
+    const nextCurriculum = findNextCurriculumBoundary_(rows, marker.pos);
+    endIndex = Math.min(endIndex, nextCurriculum);
+
+    sections.push({
+      body: body,
+      subject: marker.subject,
+      startIndex: marker.startIndex,
+      endIndex: endIndex
+    });
+  }
+
+  // The First Term master document has CRK before the first explicit
+  // Class/Term metadata block. Include that initial Basic 3 lesson section.
+  if (normalizeName_(className) === normalizeName_("Basic 3") &&
+      normalizeName_("First Term") === wantedTerm) {
+    const firstMatch = markers.find(function(marker) {
+      return normalizeName_(marker.className) === wantedClass &&
+        normalizeName_(marker.term) === wantedTerm;
+    });
+
+    if (firstMatch && !sections.some(function(entry) {
+      return normalizeName_(entry.subject) === normalizeName_("CRK");
+    })) {
+      let crkIndex = -1;
+      for (let i = 0; i < firstMatch.subjectIndex; i++) {
+        if (normalizeName_(rows[i].text) === "crk") {
+          crkIndex = i;
+        }
+      }
+
+      if (crkIndex !== -1) {
+        let startIndex = -1;
+        for (let i = crkIndex + 1; i < firstMatch.subjectIndex; i++) {
+          if (parseWeekHeading_(rows[i].text)) {
+            startIndex = i;
+            break;
+          }
+        }
+
+        if (startIndex !== -1) {
+          sections.unshift({
+            body: body,
+            subject: "CRK",
+            startIndex: startIndex,
+            endIndex: firstMatch.subjectIndex
+          });
+        }
+      }
+    }
+  }
+
+  return sections;
+}
+
+function findNextCurriculumBoundary_(rows, startIndex) {
+  for (let i = startIndex + 1; i < rows.length; i++) {
+    if (/\bFirst Term Curriculum\b/i.test(rows[i].text)) {
+      return i;
+    }
+  }
+
+  return rows.length;
+}
+
+function findWeeksInBodyRange_(body, startIndex, endIndex) {
+  const weeks = [];
+
+  for (let i = startIndex; i < endIndex; i++) {
+    const heading = parseWeekHeading_(elementText_(body.getChild(i)));
+
+    if (heading) {
+      weeks.push({
+        week: "Week " + heading.number,
+        number: heading.number,
+        dates: heading.dates,
+        topic: heading.topic
+      });
+    }
+  }
+
+  return weeks;
 }
 
 function findTabByTitle_(tabs, title) {
