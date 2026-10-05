@@ -411,12 +411,25 @@ async function loadSource(force = false) {
       ? await window.LessonHubOffline.getManifest(term, className).catch(() => null)
       : null;
 
-    if (!force && cachedManifest?.index && Object.keys(cachedManifest.index).length) {
+    // Only the First Term Basic 3 compatibility path is intentionally
+    // snapshot-first. Live-only classes such as Basic 1 must prefer the
+    // current Google Doc whenever the device is online.
+    const useCachedFirst = !navigator.onLine || (
+      termConfig.staticFallback &&
+      term === "first" &&
+      className === "Basic 3"
+    );
+
+    if (!force && useCachedFirst && cachedManifest?.index && Object.keys(cachedManifest.index).length) {
       lessonIndex = cachedManifest.index;
       liveManifest = cachedManifest.manifest || null;
       populateWeeks();
       window.LessonHubProgress?.setCatalogue(indexToCatalogue(lessonIndex), term, className);
-      setSourceStatus("cached", currentTermLabel() + " · Saved on this device", cachedManifest.modifiedAt || "");
+      setSourceStatus(
+        "cached",
+        currentTermLabel() + (navigator.onLine ? " · Saved on this device" : " · Offline · saved lessons"),
+        cachedManifest.modifiedAt || ""
+      );
       refreshSourceBtn.disabled = false;
       await refreshOfflinePanel(term);
       scheduleAutomaticUpdateCheck(term, className);
