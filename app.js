@@ -432,6 +432,25 @@ async function loadSource(force = false) {
       return lessonIndex;
     }
 
+    // First Term Basic 3 ships with a complete bundled snapshot. Use it immediately
+    // instead of making the lesson workspace wait on the live Google Doc.
+    if (!force && termConfig.staticFallback && term === "first" && className === "Basic 3") {
+      lessonIndex = buildStaticIndex();
+      populateWeeks();
+      window.LessonHubProgress?.setCatalogue(indexToCatalogue(lessonIndex), term, className);
+      await window.LessonHubOffline?.saveManifest(term, className, null, lessonIndex).catch(() => {});
+
+      setSourceStatus(
+        "static",
+        currentTermLabel() + (navigator.onLine ? " · Saved snapshot" : " · Offline · saved snapshot")
+      );
+
+      refreshSourceBtn.disabled = false;
+      await refreshOfflinePanel(term);
+      scheduleAutomaticUpdateCheck(term, className);
+      return lessonIndex;
+    }
+
     window.lessonApi?.configureForTerm?.(term);
 
     if (navigator.onLine && window.lessonApi?.enabled) {
@@ -495,22 +514,6 @@ async function loadSource(force = false) {
       refreshSourceBtn.disabled = false;
       await refreshOfflinePanel(term);
       scheduleAutomaticUpdateCheck(term, className);
-      return lessonIndex;
-    }
-
-    if (termConfig.staticFallback && term === "first" && className === "Basic 3") {
-      lessonIndex = buildStaticIndex();
-      populateWeeks();
-      window.LessonHubProgress?.setCatalogue(indexToCatalogue(lessonIndex), term, className);
-      await window.LessonHubOffline?.saveManifest(term, className, null, lessonIndex).catch(() => {});
-
-      setSourceStatus(
-        "static",
-        currentTermLabel() + (navigator.onLine ? " · Saved snapshot" : " · Offline · saved snapshot")
-      );
-
-      refreshSourceBtn.disabled = false;
-      await refreshOfflinePanel(term);
       return lessonIndex;
     }
 
@@ -1026,20 +1029,49 @@ refreshSourceBtn.addEventListener("click", async () => {
 
 downloadOfflineBtn?.addEventListener("click", downloadCurrentTerm);
 
+function normalizeRouteSubject(value) {
+  let normalized = String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\\s+/g, " ")
+    .trim();
+
+  LESSON_CLASSES.forEach((className) => {
+    const classKey = normalizeClassName(className);
+    if (normalized.endsWith(" " + classKey)) {
+      normalized = normalized.slice(0, -(" " + classKey).length).trim();
+    }
+  });
+
+  return normalized;
+}
+
+function routeSubjectsMatch(left, right) {
+  const a = normalizeRouteSubject(left);
+  const b = normalizeRouteSubject(right);
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  const stripFineArts = (value) => value.replace(/\\s+fine\\s+arts$/, "").trim();
+  return stripFineArts(a) === stripFineArts(b);
+}
+
 async function restoreFromRoute(week, subject) {
   if (!week || !subject) return;
   await loadSource();
 
-  const weekExists = [...weekSelect.options].some((option) => option.value === week);
-  if (!weekExists) return;
+  const weekKey = [...weekSelect.options].find((option) => option.value === week)?.value;
+  if (!weekKey) return;
 
-  weekSelect.value = week;
+  weekSelect.value = weekKey;
   populateSubjects();
 
-  const subjectExists = [...subjectSelect.options].some((option) => option.value === subject);
-  if (!subjectExists) return;
+  const subjectOption = [...subjectSelect.options].find((option) =>
+    routeSubjectsMatch(option.value, subject)
+  );
+  if (!subjectOption) return;
 
-  subjectSelect.value = subject;
+  subjectSelect.value = subjectOption.value;
   viewLessonBtn.disabled = false;
   await viewSelectedLesson();
 }
